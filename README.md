@@ -101,5 +101,5 @@ Follow these instructions to set up a local development environment.
 ## 👥 Team Placeholder
 
 *   **Evgeniy Vodolazov** (Team Lead)
-*   **Evan Knieriem** 
-*   **Lucia Martinez-Segundo** 
+*   **Evan Knieriem** (Backend)
+*   **Lucia Martinez-Segundo** (Frontend)
