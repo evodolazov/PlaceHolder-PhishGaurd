@@ -1,105 +1,175 @@
-# Phishing Detection & Analysis Tool
+# PhishGuard
 
-A modular, multi-layered cybersecurity software solution designed to ingest, analyze, and score potential phishing threats from URLs, email headers, and file payloads. Built as a university capstone project to provide high-accuracy detection paired with actionable, human-readable explainability.
+PhishGuard is a modular phishing-detection platform focused on a working URL-analysis foundation. At Milestone 0, the project implements URL validation, normalization, deterministic feature extraction, transparent heuristic scoring, structured evidence generation, and persistent records in a Flask API.
 
----
+## Current milestone
 
-## 🏗️ System Architecture Pipeline
+Milestone 0 — Foundation / URL analysis vertical slice.
 
-The application processes inputs through a sequential and parallel verification pipeline:
+## Project purpose
 
-```text
-[ User Input ] ──► [ Input Normalizer ] ──┬──► [ Rule Engine (Heuristics) ]
-                                          ├──► [ Threat Intel APIs ]
-                                          └──► [ ML / AI Engine ]
-                                                   │
-                                                   ▼
-                                         [ Score Fusion & Weights ]
-                                                   │
-                                                   ▼
-                                         [ Explainability Generator ]
-                                                   │
-                                                   ▼
-                                         [ Result & PostgreSQL Log ]
-```
+The goal is to establish a clean, extensible architecture for future phishing detection engines without yet implementing ML, external threat intelligence, browser automation, or other future milestone capabilities.
 
----
+## Technology stack
 
-## 📂 Repository Structure
+- Python 3.12+
+- Flask
+- Flask-SQLAlchemy
+- PostgreSQL for normal development usage
+- SQLite for isolated automated tests
+- pytest
+- python-dotenv
+- tldextract
+
+## Repository structure
 
 ```text
-phishing-detection-tool/
-├── docs/                   # Architecture diagrams and documentation (RF-1, RF-2)
+PlaceHolder-PhishGaurd/
+├── docs/
+│   ├── api.md
+│   ├── architecture.md
+│   └── development.md
+├── scripts/
+│   └── seed_database.py
 ├── src/
-│   ├── api/                # Application entry point and REST endpoints
-│   ├── core/               # Input normalizer (parsing, canonicalization)
-│   ├── engines/            # Detection pillars (Rules, Threat Intel, ML)
-│   ├── fusion/             # Score aggregation and weighting logic
-│   ├── explainability/     # Risk factor and reasoning generator
-│   └── database/           # PostgreSQL connection, models, and migrations
-├── tests/                  # Unit and integration test suites
-├── scripts/                # Utility and database seed scripts
-├── .env.example            # Environment variable template
-├── requirements.txt        # Python package dependencies
-└── README.md               # Project documentation
+│   ├── api/
+│   │   ├── app.py
+│   │   ├── routes/
+│   │   │   ├── analysis.py
+│   │   │   └── health.py
+│   │   └── schemas/
+│   │       └── analysis.py
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── exceptions.py
+│   │   └── logging.py
+│   ├── database/
+│   │   ├── connection.py
+│   │   ├── models/
+│   │   │   └── url.py
+│   │   └── repositories/
+│   │       └── analysis_repository.py
+│   ├── engines/
+│   │   └── url/
+│   │       ├── analyzer.py
+│   │       ├── features.py
+│   │       └── normalizer.py
+│   ├── explainability/
+│   │   └── reasons.py
+│   ├── fusion/
+│   │   └── risk_engine.py
+│   ├── services/
+│   │   └── url_analysis_service.py
+│   └── __init__.py
+├── tests/
+│   ├── integration/
+│   │   ├── test_analysis_api.py
+│   │   └── test_database_persistence.py
+│   └── unit/
+│       ├── test_risk_engine.py
+│       ├── test_url_features.py
+│       └── test_url_normalizer.py
+├── .env.example
+├── .gitignore
+├── LICENSE
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+└── scripts/
 ```
 
----
+## Installation
 
-## 🛠️ Tech Stack
+```bash
+git clone https://github.com/evodolazov/PlaceHolder-PhishGaurd.git
+cd PlaceHolder-PhishGaurd
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-*   **Language:** Python 
-*   **Web Framework:** FastAPI / Flask 
-*   **Database & ORM:** PostgreSQL, SQLAlchemy
-*   **Analysis:** Regex heuristics, custom feature extraction, third-party threat intelligence integrations.
+## Environment configuration
 
----
+Create a local `.env` file from the example file:
 
-## 🚀 Getting Started
+```bash
+copy .env.example .env
+```
 
-Follow these instructions to set up a local development environment.
+Set the application database in `.env`:
 
-### Prerequisites
-*   Python 3.10 or higher
-*   PostgreSQL installed and running locally or via Docker
+```env
+DATABASE_URL=postgresql://phishguard:phishguard@localhost:5432/phishguard
+SECRET_KEY=change-me
+```
 
-### Installation
+For test isolation, the application factory can also accept an in-memory SQLite config directly.
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username-here/PlaceHolder-PhishGaurd.git
-   cd PlaceHolder-PhishGaurd
-   ```
+## Run the Flask application
 
-2. **Create and activate a virtual environment:**
-   ```bash
-   python -m venv venv
-   # On Windows:
-   venv\Scripts\activate
-   # On macOS/Linux:
-   source venv/bin/activate
-   ```
+```bash
+flask --app src.api.app:create_app run
+```
 
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+or:
 
-4. **Configure environment variables:**
-   Copy the example environment file and update it with your local database credentials and API keys:
-   ```bash
-   cp .env.example .env
-   ```
+```bash
+python -m src.api.app
+```
 
-5. **Run the application:**
-   ```bash
-   python src/api/main.py
-   ```
+## Run tests
 
----
+```bash
+pytest -q
+```
 
-## 👥 Team Placeholder
+## Example API request
 
-*   **Evgeniy Vodolazov** (Team Lead)
-*   **Evan Knieriem** (Backend)
-*   **Lucia Martinez-Segundo** (Frontend)
+```bash
+curl -X POST http://127.0.0.1:5000/api/v1/analyze/url \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com"}'
+```
+
+## Example API response
+
+```json
+{
+  "analysis_id": 1,
+  "url": "https://example.com",
+  "normalized_url": "https://example.com/",
+  "classification": "low_risk",
+  "risk_score": 0,
+  "confidence": 0.0,
+  "features": {
+    "uses_https": true,
+    "suspicious_keyword_count": 0
+  },
+  "evidence": [],
+  "created_at": "2026-10-02T00:00:00+00:00"
+}
+```
+
+## Current limitations
+
+This Milestone 0 implementation does not:
+
+- perform external network requests
+- use machine learning
+- query threat-intelligence services
+- crawl webpages
+- inspect email
+- provide Chrome Extension functionality
+- perform DNS, RDAP, TLS, or browser automation
+
+Those capabilities are explicitly future milestones.
+
+## Future milestones
+
+- Domain intelligence and DNS analysis
+- TLS and certificate inspection
+- Threat intelligence service integration
+- ML-powered risk scoring
+- Email analysis
+- Browser extension support
+- Security and deployment hardening
