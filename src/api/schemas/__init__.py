@@ -1,5 +1,5 @@
 """Schema exports for API inputs."""
 
-from src.api.schemas.analysis import AnalysisRequestSchema
+from src.api.schemas.analysis import AnalysisRequestSchema, EmailAnalysisRequestSchema
 
-__all__ = ["AnalysisRequestSchema"]
+__all__ = ["AnalysisRequestSchema", "EmailAnalysisRequestSchema"]
