@@ -9,6 +9,8 @@ from flask import Flask
 from src.api.routes.analysis import analysis_bp
 from src.api.routes.health import health_bp
 from src.database.connection import db, init_db
+from src.database.models import email as _email_models  # noqa: F401
+from src.database.models import url as _url_models  # noqa: F401
 
 
 def create_app(test_config: dict | None = None) -> Flask:
