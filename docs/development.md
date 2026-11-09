@@ -49,6 +49,10 @@ pytest -q
 python scripts/seed_database.py
 ```
 
-## Milestone 0 limitations
+## Current milestone
 
-This milestone intentionally does not fetch remote URLs, call third-party threat-intelligence APIs, perform ML, inspect email, or provide browser extension functionality.
+The active milestone is the ML/TLS hardening and integration pass.
+
+This branch keeps the deterministic URL/email scoring model as the primary decision engine while layering on optional ML and TLS inspection, safer defaults, sanitization controls, and integration coverage. The optional ML/TLS features are configured explicitly and do not replace the existing deterministic scoring logic.
+
+Current limitations are intentional and documented: the branch is not a complete production-grade real-dataset ML pipeline or a fully enterprise-scale TLS inspection platform. The project still treats those areas as active hardening and validation work.
