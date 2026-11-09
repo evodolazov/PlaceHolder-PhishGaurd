@@ -51,7 +51,7 @@ class AnalysisRecord(db.Model):
     url_id: Mapped[int] = mapped_column(ForeignKey("urls.id"), nullable=False, index=True)
     classification: Mapped[str] = mapped_column(nullable=False, index=True)
     risk_score: Mapped[int] = mapped_column(nullable=False)
-    confidence: Mapped[float] = mapped_column(nullable=False)
+    confidence: Mapped[float | None] = mapped_column(nullable=True)
     features: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     evidence: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), nullable=False)

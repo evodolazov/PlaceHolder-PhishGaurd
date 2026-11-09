@@ -50,7 +50,7 @@ class AnalysisRepository:
         url_record: URLRecord,
         classification: str,
         risk_score: int,
-        confidence: float,
+        confidence: float | None,
         features: dict[str, Any],
         evidence: list[dict[str, Any]],
     ) -> AnalysisRecord:
@@ -76,7 +76,7 @@ class AnalysisRepository:
         registrable_domain: str,
         classification: str,
         risk_score: int,
-        confidence: float,
+        confidence: float | None,
         features: dict[str, Any],
         evidence: list[dict[str, Any]],
     ) -> AnalysisRecord:

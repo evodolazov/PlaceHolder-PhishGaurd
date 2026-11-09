@@ -24,7 +24,7 @@ def test_url_and_analysis_persistence() -> None:
             url_record=url_record,
             classification="low_risk",
             risk_score=0,
-            confidence=0.0,
+            confidence=None,
             features={"uses_https": True},
             evidence=[],
         )
@@ -32,6 +32,7 @@ def test_url_and_analysis_persistence() -> None:
         assert URLRecord.query.filter_by(raw_url="https://example.com").count() == 1
         assert AnalysisRecord.query.filter_by(url_id=url_record.id).count() == 1
         assert analysis.url_id == url_record.id
+        assert analysis.confidence is None
 
         assert db.session.get(AnalysisRecord, analysis.id) is not None
 
@@ -50,7 +51,7 @@ def test_email_analysis_persistence() -> None:
             headers={},
             classification="low_risk",
             risk_score=0,
-            confidence=0.05,
+            confidence=None,
             features={"link_count": 0},
             evidence=[],
             urls=[],
@@ -58,4 +59,5 @@ def test_email_analysis_persistence() -> None:
 
         assert EmailRecord.query.filter_by(from_address="alice@example.com").count() == 1
         assert EmailAnalysisRecord.query.filter_by(email_id=analysis.email_id).count() == 1
+        assert analysis.confidence is None
         assert db.session.get(EmailAnalysisRecord, analysis.id) is not None

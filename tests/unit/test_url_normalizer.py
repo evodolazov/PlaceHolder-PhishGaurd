@@ -45,11 +45,25 @@ def test_url_credentials_and_sensitive_query_values_are_redacted() -> None:
     assert "safe=1" in normalized.normalized_url
 
 
-def test_confidence_does_not_just_equal_risk_score() -> None:
+def test_confidence_is_null_when_no_statistical_measure_exists() -> None:
     normalized = normalize_url("https://example.com/login")
     assessment = score_url(extract_features(normalized), normalized)
-    assert 0.0 <= assessment.confidence <= 0.99
-    assert assessment.confidence != assessment.risk_score / 100.0
+    assert assessment.confidence is None
+    assert assessment.heuristic_strength is not None
+    assert assessment.heuristic_strength <= 1.0
+
+
+def test_sensitive_query_values_are_redacted_case_insensitive() -> None:
+    sanitized = normalize_url(
+        "https://example.com/path?token=abc&API_KEY=secret&safe=keep&PASSWORD=hidden&Token=again"
+    )
+    assert sanitized.normalized_url.startswith("https://example.com/path?")
+    assert "token=%5BREDACTED%5D" in sanitized.normalized_url
+    assert "API_KEY=%5BREDACTED%5D" in sanitized.normalized_url
+    assert "PASSWORD=%5BREDACTED%5D" in sanitized.normalized_url
+    assert "safe=keep" in sanitized.normalized_url
+    assert "abc" not in sanitized.normalized_url
+    assert "secret" not in sanitized.normalized_url
 
 
 def test_malformed_url_is_rejected() -> None:

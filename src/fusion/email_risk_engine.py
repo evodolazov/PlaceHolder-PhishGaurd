@@ -27,10 +27,12 @@ def score_email(features: EmailFeatures, url_results: list[dict[str, Any]] | Non
             enriched["url"] = item.get("url")
             evidence.append(enriched)
 
+    heuristic_strength = None if not evidence else round(min(1.0, len(evidence) / 6.0), 4)
     return RiskAssessment(
         classification=_classify(score),
         risk_score=score,
-        confidence=0.0 if not evidence else round(min(0.99, 0.15 + (0.6 * min(1.0, len(evidence) / 6.0)) + (0.25 * min(1.0, abs(score - 50) / 50.0))), 4),
+        confidence=None,
         evidence=evidence,
         ml_probability=None,
+        heuristic_strength=heuristic_strength,
     )
