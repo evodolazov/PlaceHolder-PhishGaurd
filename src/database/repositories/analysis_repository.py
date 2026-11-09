@@ -1,4 +1,4 @@
-"""Repository layer for URL and analysis persistence."""
+﻿"""Repository layer for URL and analysis persistence."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from src.database.connection import db
 from src.database.models.url import AnalysisRecord, URLRecord
+from src.engines.url.sanitizer import sanitize_url_for_storage
 
 
 class AnalysisRepository:
@@ -25,14 +26,15 @@ class AnalysisRepository:
         hostname: str,
         registrable_domain: str,
     ) -> URLRecord:
+        safe_raw_url = sanitize_url_for_storage(raw_url)
         existing = self.session.execute(
-            select(URLRecord).where(URLRecord.raw_url == raw_url)
+            select(URLRecord).where(URLRecord.raw_url == safe_raw_url)
         ).scalar_one_or_none()
         if existing is not None:
             return existing
 
         record = URLRecord(
-            raw_url=raw_url,
+            raw_url=safe_raw_url,
             normalized_url=normalized_url,
             scheme=scheme,
             hostname=hostname,

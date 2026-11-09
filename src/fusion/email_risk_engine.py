@@ -1,4 +1,4 @@
-"""Combine email heuristics with extracted-URL scores."""
+﻿"""Combine email heuristics with extracted-URL scores."""
 
 from __future__ import annotations
 
@@ -27,10 +27,10 @@ def score_email(features: EmailFeatures, url_results: list[dict[str, Any]] | Non
             enriched["url"] = item.get("url")
             evidence.append(enriched)
 
-    confidence = max(0.05, min(0.99, score / 100.0))
     return RiskAssessment(
         classification=_classify(score),
         risk_score=score,
-        confidence=confidence,
+        confidence=0.0 if not evidence else round(min(0.99, 0.15 + (0.6 * min(1.0, len(evidence) / 6.0)) + (0.25 * min(1.0, abs(score - 50) / 50.0))), 4),
         evidence=evidence,
+        ml_probability=None,
     )
