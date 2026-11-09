@@ -29,6 +29,11 @@ class EmailAnalysisRepository:
         features: dict[str, Any],
         evidence: list[dict[str, Any]],
         urls: list[dict[str, Any]],
+        ml_probability: float | None = None,
+        ml_prediction: str | None = None,
+        ml_model_status: str | None = None,
+        ml_model_version: str | None = None,
+        feature_schema_version: str | None = None,
     ) -> EmailAnalysisRecord:
         with self.session.begin():
             email_record = EmailRecord(
@@ -46,6 +51,11 @@ class EmailAnalysisRepository:
                 classification=classification,
                 risk_score=risk_score,
                 confidence=confidence,
+                ml_probability=ml_probability,
+                ml_prediction=ml_prediction,
+                ml_model_status=ml_model_status,
+                ml_model_version=ml_model_version,
+                feature_schema_version=feature_schema_version,
                 features=features,
                 evidence=evidence,
                 urls=urls,

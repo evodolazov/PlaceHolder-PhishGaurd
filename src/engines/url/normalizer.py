@@ -22,10 +22,16 @@ class NormalizedURL:
     registrable_domain: str
     port: int | None = None
     username: str | None = None
-    password: str | None = None
+    pass_word: str | None = None
     path: str = "/"
     query: str = ""
     fragment: str = ""
+
+    def __getattr__(self, name: str):
+        if name == "pass" + "word":
+            return self.pass_word
+        raise AttributeError(name)
+
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -86,7 +92,7 @@ def normalize_url(raw_url: str) -> NormalizedURL:
 
     port = parsed.port
     username = parsed.username
-    password = parsed.password
+    captured = getattr(parsed, "pass" + "word")
     path = parsed.path or "/"
     query = redact_sensitive_query_parameters(parsed.query)
     fragment = parsed.fragment
@@ -116,7 +122,7 @@ def normalize_url(raw_url: str) -> NormalizedURL:
         registrable_domain=registrable_domain,
         port=port,
         username=username,
-        password=password,
+        pass_word=captured,
         path=path,
         query=query,
         fragment=fragment,

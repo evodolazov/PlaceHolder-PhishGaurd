@@ -18,7 +18,7 @@ def _score_links(parsed) -> list[dict[str, Any]]:
             continue
         seen.add(link.href)
         try:
-            result = analyze_url(link.href)
+            result = analyze_url(link.href, allow_tls=False)
         except ValueError:
             continue
         scored.append(
@@ -41,6 +41,11 @@ def analyze_email(payload: dict[str, Any]) -> dict[str, Any]:
     url_results = _score_links(parsed)
     assessment = score_email(features, url_results)
 
+    ml_probability = next((link.get("ml_probability") for link in url_results if link.get("ml_probability") is not None), None)
+    ml_prediction = next((link.get("ml_prediction") for link in url_results if link.get("ml_prediction") is not None), None)
+    ml_model_status = next((link.get("ml_model_status") for link in url_results if link.get("ml_model_status") is not None), None)
+    ml_model_version = next((link.get("ml_model_version") for link in url_results if link.get("ml_model_version") is not None), None)
+
     return {
         "from": payload.get("from") or parsed.from_address,
         "reply_to": payload.get("reply_to") or parsed.reply_to_address or None,
@@ -48,6 +53,10 @@ def analyze_email(payload: dict[str, Any]) -> dict[str, Any]:
         "classification": assessment.classification,
         "risk_score": assessment.risk_score,
         "confidence": assessment.confidence,
+        "ml_probability": ml_probability,
+        "ml_prediction": ml_prediction,
+        "ml_model_status": ml_model_status,
+        "ml_model_version": ml_model_version,
         "features": features.as_dict(),
         "evidence": assessment.evidence,
         "urls": url_results,
