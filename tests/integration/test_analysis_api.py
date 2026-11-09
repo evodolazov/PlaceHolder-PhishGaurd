@@ -32,6 +32,26 @@ def test_valid_url_analysis(client) -> None:
     assert payload["risk_score"] >= 0
 
 
+def test_sensitive_url_analysis_retrieval_is_sanitized(client) -> None:
+    raw_url = "https://user:secret@trusted.example/login?token=abc123&safe=1&api_key=xyz"
+    create_response = client.post("/api/v1/analyze/url", json={"url": raw_url})
+    assert create_response.status_code == 201
+    analysis_id = create_response.get_json()["analysis_id"]
+
+    fetch_response = client.get(f"/api/v1/analysis/{analysis_id}")
+    assert fetch_response.status_code == 200
+    payload = fetch_response.get_json()
+    assert payload["url"] == "https://trusted.example/login?token=%5BREDACTED%5D&safe=1&api_key=%5BREDACTED%5D"
+    assert payload["normalized_url"] == "https://trusted.example/login?token=%5BREDACTED%5D&safe=1&api_key=%5BREDACTED%5D"
+    assert "user:secret" not in payload["url"]
+    assert "abc123" not in payload["url"]
+    assert "xyz" not in payload["url"]
+    assert "safe=1" in payload["url"]
+    assert payload["features"]["at_symbol_count"] == 1
+    assert any(item["indicator"] == "url.at_symbol" for item in payload["evidence"])
+    assert payload["confidence"] is None
+
+
 def test_sensitive_url_payload_is_sanitized_in_api_response(client) -> None:
     response = client.post(
         "/api/v1/analyze/url",
