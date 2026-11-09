@@ -34,12 +34,19 @@ Successful response:
   "normalized_url": "https://example.com/",
   "classification": "low_risk",
   "risk_score": 0,
-  "confidence": 0.0,
+  "confidence": null,
+  "ml_probability": null,
+  "ml_prediction": null,
+  "ml_model_status": "unavailable",
+  "feature_schema_version": "url-feature-schema-v1",
+  "tls_status": "not_applicable",
   "features": {},
   "evidence": [],
   "created_at": "2026-10-02T00:00:00+00:00"
 }
 ```
+
+The ML probability is returned as a separate signal and is not treated as the deterministic confidence score. TLS information is returned separately from the phishing risk score and is only populated when inspection is enabled and applicable.
 
 Invalid requests return HTTP 400 with an error object such as:
 

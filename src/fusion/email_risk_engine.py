@@ -13,7 +13,7 @@ URL_SCORE_CAP = 40
 
 
 def score_email(features: EmailFeatures, url_results: list[dict[str, Any]] | None = None) -> RiskAssessment:
-    """Sum email-rule weights and the strongest URL score."""
+    """Sum email-rule weights and the strongest URL score while preserving URL-level ML metadata."""
     url_results = url_results or []
     results = evaluate_rules(features)
     fired = [result for result in results if result.fired]
@@ -21,6 +21,17 @@ def score_email(features: EmailFeatures, url_results: list[dict[str, Any]] | Non
     url_points = min(URL_SCORE_CAP, max((int(item.get("risk_score") or 0) for item in url_results), default=0))
     score = min(100, email_points + url_points)
     evidence = [result.to_evidence() for result in fired]
+
+    ml_signal_count = sum(1 for item in url_results if item.get("ml_probability") is not None)
+    if ml_signal_count:
+        good_probabilities = [float(item["ml_probability"]) for item in url_results if item.get("ml_probability") is not None]
+        highest_probability = max(good_probabilities)
+        evidence.append({
+            "type": "embedded_url_ml_signal",
+            "detail": f"Embedded URL ML probability reached {highest_probability:.3f} across {ml_signal_count} link(s); this was recorded as supporting evidence but did not replace email-specific scoring.",
+            "ml_probability": round(highest_probability, 4),
+        })
+
     for item in url_results:
         for url_evidence in item.get("evidence") or []:
             enriched = dict(url_evidence)

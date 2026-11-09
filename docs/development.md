@@ -55,4 +55,6 @@ The active milestone is the ML/TLS hardening and integration pass.
 
 This branch keeps the deterministic URL/email scoring model as the primary decision engine while layering on optional ML and TLS inspection, safer defaults, sanitization controls, and integration coverage. The optional ML/TLS features are configured explicitly and do not replace the existing deterministic scoring logic.
 
-Current limitations are intentional and documented: the branch is not a complete production-grade real-dataset ML pipeline or a fully enterprise-scale TLS inspection platform. The project still treats those areas as active hardening and validation work.
+The model-training pipeline uses the public UCI Phishing Websites dataset from the UCI Machine Learning Repository as the documented training source. A reproducible local sample is maintained in `data/ml/uci_phishing_training.csv` and the trained artifact is saved under `artifacts/ml/url_model.pkl`.
+
+Current limitations are intentional and documented: the pipeline is a conservative hardening pass and not a fully enterprise-scale TLS or phishing-language production system. The project still treats those areas as active hardening and validation work.

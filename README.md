@@ -33,7 +33,26 @@ The active milestone is the ML/TLS hardening and integration pass.
 
 This branch preserves the core deterministic URL/email scoring architecture while adding optional ML and TLS capabilities, strict sanitization, safe fallback behavior, and regression coverage for privacy and network-safety concerns.
 
-Important caveat: the ML/TLS layers are intentionally additive and configurable; they are not presented as a fully production-grade phishing dataset + model pipeline or a comprehensive enterprise TLS inspection stack. Remaining work is documented in the project guidance and should be treated as active follow-up items rather than completed production milestones.
+Important caveat: the ML/TLS layers are intentionally additive and configurable. The current implementation includes a real public phishing dataset and a reproducible model-training pipeline, but it remains a conservative hardening pass rather than a fully production-scale enterprise ML/TLS stack.
+
+## Dataset and model training
+
+The current training pipeline uses the public UCI Phishing Websites dataset from the UCI Machine Learning Repository as its documented source. The repository source is:
+
+- https://archive.ics.uci.edu/ml/machine-learning-databases/00327/Training%20Dataset.arff
+
+The project keeps a checked-in sample of the public dataset under `data/ml/uci_phishing_training.csv` and loads it into the internal feature schema before training a logistic-regression classifier.
+
+A fresh run of the training pipeline produced the following held-out evaluation metrics on a stratified 80/20 split:
+
+- accuracy: 0.85
+- precision: 0.8261
+- recall: 0.9048
+- F1: 0.8636
+- ROC-AUC: 0.8997
+- PR-AUC: 0.9060
+
+The model artifact is saved to `artifacts/ml/url_model.pkl` and is not auto-loaded unless explicitly configured via `ML_MODEL_PATH` or `PHISHGUARD_ML_MODEL_PATH`.
 
 ## Technology stack
 

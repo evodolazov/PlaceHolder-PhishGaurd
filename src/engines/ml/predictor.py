@@ -25,13 +25,15 @@ class MLPredictionResult:
 
 
 def default_model_path() -> Path | None:
-    """Return the configured default artifact path when an explicit model is present.
+    """Return the configured model path when the app explicitly asks for one.
 
-    The project intentionally does not auto-load a repository-local model artifact;
-    ML inference is only enabled when a path is supplied via configuration or an
-    environment variable. This preserves the default 'unavailable' behavior in
-    environments without a trained artifact.
+    A repository-local artifact is intentionally not auto-loaded unless the caller
+    or environment has explicitly configured a path. This keeps the default safe
+    behavior deterministic-only while still allowing trained artifacts to be used.
     """
+    configured = os.getenv("PHISHGUARD_ML_MODEL_PATH") or os.getenv("ML_MODEL_PATH")
+    if configured:
+        return Path(configured)
     return None
 
 

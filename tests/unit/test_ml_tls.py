@@ -3,7 +3,11 @@ from __future__ import annotations
 from src.engines.email.analyzer import analyze_email
 from src.engines.ml.feature_schema import FEATURE_COLUMNS, FEATURE_SCHEMA_VERSION
 from src.engines.ml.predictor import predict_url_features
+from src.engines.ml.training import load_training_dataset, train_default_model
 from src.engines.tls.inspector import inspect_tls_url
+from src.fusion.risk_engine import apply_ml_fusion, score_url
+from src.engines.url.features import extract_features
+from src.engines.url.normalizer import normalize_url
 
 
 def test_feature_schema_version_is_stable() -> None:
@@ -42,6 +46,28 @@ def test_tls_inspector_blocks_localhost_hostname() -> None:
     assert "blocked" in result.explanation.lower()
 
 
+def test_training_dataset_loads_and_has_expected_labels() -> None:
+    features, labels, summary = load_training_dataset()
+    assert len(features) == len(labels) > 0
+    assert summary.feature_schema_version == FEATURE_SCHEMA_VERSION
+    assert summary.label_distribution["phishing"] > 0
+    assert summary.label_distribution["benign"] > 0
+
+
+def test_ml_fusion_preserves_deterministic_scoring() -> None:
+    normalized = normalize_url("https://example.com/login")
+    assessment = score_url(extract_features(normalized), normalized, ml_probability=0.92)
+    assert assessment.ml_probability == 0.92
+    assert "ml_fusion" in assessment.evidence[-1]["type"]
+    assert assessment.risk_score >= 0
+
+
+def test_train_default_model_generates_model_metadata() -> None:
+    result = train_default_model()
+    assert result["metrics"]["accuracy"] >= 0.55
+    assert result["version"] == "url-logreg-v1"
+
+
 def test_email_analysis_does_not_trigger_tls_for_embedded_urls(monkeypatch) -> None:
     def _fail(*args, **kwargs):
         raise AssertionError("embedded email URLs should not trigger TLS inspection")
@@ -54,3 +80,4 @@ def test_email_analysis_does_not_trigger_tls_for_embedded_urls(monkeypatch) -> N
     })
     assert result["urls"]
     assert result["confidence"] is None
+    assert "ml_probability" in result or result["urls"][0].get("ml_probability") is not None

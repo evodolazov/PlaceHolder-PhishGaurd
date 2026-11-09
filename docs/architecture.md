@@ -2,7 +2,7 @@
 
 ## Overview
 
-Milestone 0 implements the foundation for URL analysis: validation, normalization, feature extraction, heuristic scoring, explainability, and persistence. The design keeps API concerns separate from core analysis logic and database access.
+The active milestone is the ML/TLS hardening and integration pass. The architecture keeps deterministic URL/email scoring as the base decision engine while layering on ML prediction, TLS inspection, and privacy-preserving sanitization. The design keeps API concerns separate from core analysis logic and database access while preserving explicit configuration gates for optional signals.
 
 ## Layer responsibilities
 

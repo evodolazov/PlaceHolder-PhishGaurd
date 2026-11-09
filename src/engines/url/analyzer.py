@@ -20,9 +20,6 @@ def analyze_url(raw_url: str, *, allow_tls: bool | None = None) -> dict[str, Any
 
     normalized = normalize_url(raw_url)
     features = extract_features(normalized)
-    risk_assessment: RiskAssessment = score_url(features, normalized)
-    safe_url = sanitize_url_for_storage(raw_url)
-
     config = AppConfig.from_env()
     ml_result = predict_url_features(features.as_dict()) if config.ml_enabled else {
         "status": "disabled",
@@ -33,6 +30,9 @@ def analyze_url(raw_url: str, *, allow_tls: bool | None = None) -> dict[str, Any
         "feature_schema_version": None,
         "message": "ML is disabled by configuration.",
     }
+    ml_probability = getattr(ml_result, "probability", None) if hasattr(ml_result, "probability") else ml_result.get("probability")
+    risk_assessment: RiskAssessment = score_url(features, normalized, ml_probability=ml_probability)
+    safe_url = sanitize_url_for_storage(raw_url)
 
     effective_tls_enabled = config.tls_enabled if allow_tls is None else allow_tls
     tls_result = inspect_tls_url(raw_url, timeout=config.tls_timeout, allowed_ports=set(config.tls_allowed_ports)) if effective_tls_enabled and normalized.scheme == "https" else {

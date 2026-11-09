@@ -28,6 +28,11 @@ def _score_links(parsed) -> list[dict[str, Any]]:
                 "classification": result["classification"],
                 "risk_score": result["risk_score"],
                 "confidence": result["confidence"],
+                "ml_probability": result.get("ml_probability"),
+                "ml_prediction": result.get("ml_prediction"),
+                "ml_model_status": result.get("ml_model_status"),
+                "ml_model_version": result.get("ml_model_version"),
+                "feature_schema_version": result.get("feature_schema_version"),
                 "evidence": result["evidence"],
             }
         )
@@ -45,6 +50,7 @@ def analyze_email(payload: dict[str, Any]) -> dict[str, Any]:
     ml_prediction = next((link.get("ml_prediction") for link in url_results if link.get("ml_prediction") is not None), None)
     ml_model_status = next((link.get("ml_model_status") for link in url_results if link.get("ml_model_status") is not None), None)
     ml_model_version = next((link.get("ml_model_version") for link in url_results if link.get("ml_model_version") is not None), None)
+    feature_schema_version = next((link.get("feature_schema_version") for link in url_results if link.get("feature_schema_version") is not None), None)
 
     return {
         "from": payload.get("from") or parsed.from_address,
@@ -57,6 +63,7 @@ def analyze_email(payload: dict[str, Any]) -> dict[str, Any]:
         "ml_prediction": ml_prediction,
         "ml_model_status": ml_model_status,
         "ml_model_version": ml_model_version,
+        "feature_schema_version": feature_schema_version,
         "features": features.as_dict(),
         "evidence": assessment.evidence,
         "urls": url_results,
