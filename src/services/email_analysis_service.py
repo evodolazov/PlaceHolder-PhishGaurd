@@ -25,7 +25,7 @@ class EmailAnalysisService:
             headers=payload.get("headers") if isinstance(payload.get("headers"), dict) else {},
             classification=str(result["classification"]),
             risk_score=int(result["risk_score"]),
-            confidence=float(result["confidence"]),
+            confidence=result["confidence"],
             features=result["features"],
             evidence=result["evidence"],
             urls=result["urls"],

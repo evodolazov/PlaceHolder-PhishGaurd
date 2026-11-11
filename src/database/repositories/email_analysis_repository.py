@@ -25,7 +25,7 @@ class EmailAnalysisRepository:
         headers: dict[str, Any],
         classification: str,
         risk_score: int,
-        confidence: float,
+        confidence: float | None,
         features: dict[str, Any],
         evidence: list[dict[str, Any]],
         urls: list[dict[str, Any]],
