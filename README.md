@@ -154,13 +154,12 @@ curl -X POST http://127.0.0.1:5000/api/v1/analyze/url \
 
 This Milestone 0 implementation does not:
 
-- perform external network requests
-- use machine learning
-- query threat-intelligence services
 - crawl webpages
-- inspect email
+- use machine learning
 - provide Chrome Extension functionality
 - perform DNS, RDAP, TLS, or browser automation
+
+Google Safe Browsing is optional and off by default. Enable it with `SAFE_BROWSING_ENABLED=true` and `GOOGLE_SAFE_BROWSING_API_KEY`.
 
 Those capabilities are explicitly future milestones.
 
@@ -168,8 +167,7 @@ Those capabilities are explicitly future milestones.
 
 - Domain intelligence and DNS analysis
 - TLS and certificate inspection
-- Threat intelligence service integration
+- Additional threat-intelligence sources
 - ML-powered risk scoring
-- Email analysis
 - Browser extension support
 - Security and deployment hardening

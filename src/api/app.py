@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
 from flask import Flask
 
 from src.api.routes.analysis import analysis_bp
@@ -15,6 +16,7 @@ from src.database.models import url as _url_models  # noqa: F401
 
 def create_app(test_config: dict | None = None) -> Flask:
     """Create a configured Flask application instance."""
+    load_dotenv()
     app = Flask(__name__)
     app.config.from_mapping(
         SECRET_KEY=os.getenv("SECRET_KEY", "dev-secret-key"),
