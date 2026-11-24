@@ -45,7 +45,7 @@ flask --app src.api.app:create_app db migrate -m "describe change"
 flask --app src.api.app:create_app db upgrade
 ```
 
-The application also retains `db.create_all()` for fresh test/application setup, but evolved databases should use migrations.
+Test applications create isolated schemas with `db.create_all()` when `TESTING=True`. Production startup does not create tables automatically: run the Alembic upgrade before starting the application. The Docker entrypoint runs `flask db upgrade` before serving requests.
 
 ## Run and tests
 

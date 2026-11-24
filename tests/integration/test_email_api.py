@@ -125,6 +125,98 @@ def test_email_analysis_and_retrieval(client) -> None:
     assert fetch_payload["confidence"] is None
 
 
+def test_email_threat_status_is_preserved_on_retrieval(client, monkeypatch) -> None:
+    threat_status = {
+        "status": "unavailable",
+        "match_found": None,
+        "message": "Google Safe Browsing lookup is currently unavailable.",
+    }
+    monkeypatch.setattr(
+        "src.services.email_analysis_service.get_status",
+        lambda: threat_status,
+    )
+
+    created = client.post(
+        "/api/v1/analyze/email",
+        json={"from": "alice@example.com", "subject": "Hello", "body_text": "See you soon."},
+    )
+    assert created.status_code == 201
+    initial = created.get_json()
+
+    retrieved = client.get(f"/api/v1/email-analysis/{initial['analysis_id']}")
+    assert retrieved.status_code == 200
+    saved = retrieved.get_json()
+    assert saved["threat_intelligence"] == threat_status
+    assert saved["features"] == initial["features"]
+
+
+@pytest.mark.parametrize(
+    ("matches", "lookup_status", "expected_status", "expected_match"),
+    [
+        (
+            [],
+            {"status": "disabled", "match_found": None, "message": "Safe Browsing is disabled."},
+            "disabled",
+            None,
+        ),
+        (
+            [],
+            {"status": "enabled", "match_found": False, "message": "No matches found."},
+            "enabled",
+            False,
+        ),
+        (
+            [{"threatType": "SOCIAL_ENGINEERING"}],
+            {"status": "enabled", "match_found": True, "message": "A match was found."},
+            "enabled",
+            True,
+        ),
+        (
+            [],
+            {"status": "unavailable", "match_found": None, "message": "Lookup unavailable."},
+            "unavailable",
+            None,
+        ),
+    ],
+)
+def test_email_embedded_url_threat_status_is_preserved(
+    client,
+    monkeypatch,
+    matches,
+    lookup_status,
+    expected_status,
+    expected_match,
+) -> None:
+    monkeypatch.setattr(
+        "src.engines.threat_intel.safe_browsing.lookup_url_with_status",
+        lambda _url: (matches, lookup_status),
+    )
+    monkeypatch.setattr(
+        "src.services.email_analysis_service.get_status",
+        lambda: {"status": "enabled", "match_found": None, "message": "No lookup status."},
+    )
+    created = client.post(
+        "/api/v1/analyze/email",
+        json={
+            "from": "alice@example.com",
+            "subject": "Hello",
+            "body_text": "Please review https://example.com/login",
+        },
+    )
+    assert created.status_code == 201
+    initial = created.get_json()
+    threat_status = initial["threat_intelligence"]
+    assert threat_status["status"] == expected_status
+    assert threat_status["match_found"] is expected_match
+    assert initial["urls"][0]["threat_intelligence"] == lookup_status
+
+    retrieved = client.get(f"/api/v1/email-analysis/{initial['analysis_id']}")
+    assert retrieved.status_code == 200
+    saved = retrieved.get_json()
+    assert saved["threat_intelligence"] == threat_status
+    assert saved["urls"] == initial["urls"]
+
+
 def test_email_analysis_with_sensitive_embedded_url_is_sanitized(client) -> None:
     raw_url = "https://user:secret@evil.example/login?token=abc123&safe=1&api_key=xyz"
     response = client.post(
@@ -338,6 +430,51 @@ def test_equivalent_multipart_alternatives_are_not_counted_twice(client) -> None
 
     assert response.status_code == 201
     assert response.get_json()["features"]["credential_keyword_count"] == 2
+
+
+def test_html_only_alternative_link_is_scored_without_double_counting_text(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.engines.threat_intel.safe_browsing.lookup_url_with_status",
+        lambda _url: (
+            [],
+            {
+                "status": "disabled",
+                "match_found": None,
+                "message": "Google Safe Browsing is disabled.",
+            },
+        ),
+    )
+    eml = (
+        b"From: Sender <sender@example.com>\r\n"
+        b"Subject: Routine meeting\r\n"
+        b'MIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary="alt"\r\n\r\n'
+        b"--alt\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n"
+        b"Please confirm your password.\r\n"
+        b"--alt\r\nContent-Type: text/html; charset=utf-8\r\n\r\n"
+        b'<p>Please confirm your password.</p><a href="https://example.com/hidden-login">'
+        b"Sign in</a>\r\n"
+        b"--alt--\r\n"
+    )
+
+    response = _upload_eml(client, eml)
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["features"]["credential_keyword_count"] == 2
+    assert payload["features"]["link_count"] == 1
+    assert len(payload["urls"]) == 1
+    link_result = payload["urls"][0]
+    assert link_result["normalized_url"] == "https://example.com/hidden-login"
+    assert link_result["risk_score"] > 0
+    assert any(
+        item["indicator"] == "url.suspicious_keywords"
+        for item in link_result["evidence"]
+    )
+    assert any(
+        item["indicator"] == "url.suspicious_keywords"
+        and item["url"] == link_result["url"]
+        for item in payload["evidence"]
+    )
 
 
 def test_html_only_multipart_alternative_remains_analyzable(client) -> None:

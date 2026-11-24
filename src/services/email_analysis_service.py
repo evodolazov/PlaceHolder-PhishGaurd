@@ -7,6 +7,47 @@ from typing import Any
 from src.database.repositories.email_analysis_repository import EmailAnalysisRepository
 from src.engines.email.analyzer import analyze_email
 from src.engines.threat_intel.safe_browsing import get_status
+from src.services.analysis_metadata import (
+    features_with_threat_status,
+    features_without_threat_status,
+)
+
+
+def _email_threat_status(url_results: list[dict[str, Any]]) -> dict[str, Any]:
+    statuses = [
+        result["threat_intelligence"]
+        for result in url_results
+        if isinstance(result.get("threat_intelligence"), dict)
+    ]
+    if not statuses:
+        return get_status()
+
+    match_found = any(status.get("match_found") is True for status in statuses)
+    if any(status.get("status") == "unavailable" for status in statuses):
+        return {
+            "status": "unavailable",
+            "match_found": True if match_found else None,
+            "message": "At least one embedded URL lookup was unavailable.",
+        }
+    if match_found:
+        return {
+            "status": "enabled",
+            "match_found": True,
+            "message": "Safe Browsing found a match for an embedded URL.",
+        }
+    if any(status.get("status") == "enabled" for status in statuses):
+        return {
+            "status": "enabled",
+            "match_found": False,
+            "message": "Safe Browsing found no matches for the analyzed embedded URLs.",
+        }
+    if all(status.get("status") == "disabled" for status in statuses):
+        return {
+            "status": "disabled",
+            "match_found": None,
+            "message": "Google Safe Browsing is disabled.",
+        }
+    return get_status()
 
 
 class EmailAnalysisService:
@@ -15,8 +56,14 @@ class EmailAnalysisService:
     def __init__(self, repository: EmailAnalysisRepository | None = None) -> None:
         self.repository = repository or EmailAnalysisRepository()
 
-    def analyze(self, payload: dict[str, Any]) -> dict[str, object]:
-        result = analyze_email(payload)
+    def analyze(
+        self,
+        payload: dict[str, Any],
+        *,
+        feature_body_html: str | None = None,
+    ) -> dict[str, object]:
+        result = analyze_email(payload, feature_body_html=feature_body_html)
+        threat_status = _email_threat_status(result["urls"])
         analysis = self.repository.persist_analysis(
             from_address=str(payload.get("from") or ""),
             reply_to=str(payload.get("reply_to")).strip() if payload.get("reply_to") else None,
@@ -27,7 +74,7 @@ class EmailAnalysisService:
             classification=str(result["classification"]),
             risk_score=int(result["risk_score"]),
             confidence=result["confidence"],
-            features=result["features"],
+            features=features_with_threat_status(result["features"], threat_status),
             evidence=result["evidence"],
             urls=result["urls"],
         )
@@ -40,10 +87,10 @@ class EmailAnalysisService:
             "classification": analysis.classification,
             "risk_score": analysis.risk_score,
             "confidence": analysis.confidence,
-            "features": analysis.features,
+            "features": result["features"],
             "evidence": analysis.evidence,
             "urls": analysis.urls,
-            "threat_intelligence": get_status(),
+            "threat_intelligence": threat_status,
             "created_at": analysis.created_at.isoformat(),
         }
 
@@ -52,6 +99,7 @@ class EmailAnalysisService:
         if record is None:
             return None
 
+        features, threat_status = features_without_threat_status(record.features)
         return {
             "analysis_id": record.id,
             "from": record.email.from_address,
@@ -60,10 +108,10 @@ class EmailAnalysisService:
             "classification": record.classification,
             "risk_score": record.risk_score,
             "confidence": record.confidence,
-            "features": record.features,
+            "features": features,
             "evidence": record.evidence,
             "urls": record.urls,
-            "threat_intelligence": {"status": "enabled" if any(e.get("source") == "google_safe_browsing" for e in record.evidence) else "disabled", "message": "Stored threat-intelligence evidence is shown where available."},
+            "threat_intelligence": threat_status,
             "created_at": record.created_at.isoformat(),
         }
 

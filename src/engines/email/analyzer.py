@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from src.engines.email.features import extract_features
@@ -29,15 +30,25 @@ def _score_links(parsed) -> list[dict[str, Any]]:
                 "risk_score": result["risk_score"],
                 "confidence": result["confidence"],
                 "evidence": result["evidence"],
+                "threat_intelligence": result["threat_intelligence"],
             }
         )
     return scored
 
 
-def analyze_email(payload: dict[str, Any]) -> dict[str, Any]:
+def analyze_email(
+    payload: dict[str, Any],
+    *,
+    feature_body_html: str | None = None,
+) -> dict[str, Any]:
     """Parse an email, score embedded URLs, and apply email heuristics."""
     parsed = parse_email(payload)
-    features = extract_features(parsed)
+    feature_source = (
+        replace(parsed, body_html=feature_body_html)
+        if feature_body_html is not None
+        else parsed
+    )
+    features = extract_features(feature_source)
     url_results = _score_links(parsed)
     assessment = score_email(features, url_results)
 

@@ -22,6 +22,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Restore NOT NULL only after all persisted NULL confidence values are resolved.
+
+    The application legitimately stores NULL confidence when no calibrated model
+    provides a value. This downgrade does not invent replacement scores; it will
+    fail if such rows remain, so inspect and address them before downgrading.
+    """
     with op.batch_alter_table("analyses") as batch_op:
         batch_op.alter_column("confidence", existing_type=sa.Float(), nullable=False)
     with op.batch_alter_table("email_analyses") as batch_op:

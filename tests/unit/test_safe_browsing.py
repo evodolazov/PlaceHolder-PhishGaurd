@@ -2,7 +2,14 @@ from __future__ import annotations
 import io
 import urllib.error
 
-from src.engines.threat_intel.safe_browsing import MATCH_WEIGHT, apply_safe_browsing, lookup_url
+import pytest
+
+from src.engines.threat_intel.safe_browsing import (
+    MATCH_WEIGHT,
+    apply_safe_browsing,
+    lookup_url,
+    lookup_url_with_status,
+)
 from src.engines.url.analyzer import analyze_url
 from src.fusion.risk_engine import RiskAssessment
 
@@ -26,10 +33,10 @@ def test_lookup_reports_unavailable_when_service_errors(monkeypatch) -> None:
         "src.engines.threat_intel.safe_browsing.urllib.request.urlopen",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(urllib.error.URLError("unavailable")),
     )
-    from src.engines.threat_intel.safe_browsing import lookup_url_with_status
     matches, status = lookup_url_with_status("https://example.com")
     assert matches == []
     assert status["status"] == "unavailable"
+    assert status["match_found"] is None
 
 
 def test_lookup_reports_invalid_key_as_unavailable(monkeypatch) -> None:
@@ -41,10 +48,46 @@ def test_lookup_reports_invalid_key_as_unavailable(monkeypatch) -> None:
             urllib.error.HTTPError("https://example.com", 400, "Bad Request", {}, io.BytesIO(b""))
         ),
     )
-    from src.engines.threat_intel.safe_browsing import lookup_url_with_status
     matches, status = lookup_url_with_status("https://example.com")
     assert matches == []
     assert status["status"] == "unavailable"
+    assert status["match_found"] is None
+
+
+@pytest.mark.parametrize("response_body", [b"", b"{not-json"])
+def test_lookup_reports_empty_or_malformed_response_as_unavailable(monkeypatch, response_body) -> None:
+    monkeypatch.setenv("GOOGLE_SAFE_BROWSING_API_KEY", "test-key")
+    monkeypatch.setenv("SAFE_BROWSING_ENABLED", "true")
+    monkeypatch.setattr(
+        "src.engines.threat_intel.safe_browsing.urllib.request.urlopen",
+        lambda *_args, **_kwargs: io.BytesIO(response_body),
+    )
+
+    matches, status = lookup_url_with_status("https://example.com")
+
+    assert matches == []
+    assert status["status"] == "unavailable"
+    assert status["match_found"] is None
+
+
+def test_lookup_status_distinguishes_match_from_clean_response(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_SAFE_BROWSING_API_KEY", "test-key")
+    monkeypatch.setenv("SAFE_BROWSING_ENABLED", "true")
+    responses = iter([io.BytesIO(b"{}"), io.BytesIO(b'{"matches":[{"threatType":"MALWARE"}]}')])
+    monkeypatch.setattr(
+        "src.engines.threat_intel.safe_browsing.urllib.request.urlopen",
+        lambda *_args, **_kwargs: next(responses),
+    )
+
+    clean_matches, clean_status = lookup_url_with_status("https://example.com")
+    threat_matches, threat_status = lookup_url_with_status("https://malware.example")
+
+    assert clean_matches == []
+    assert clean_status["status"] == "enabled"
+    assert clean_status["match_found"] is False
+    assert threat_matches == [{"threatType": "MALWARE"}]
+    assert threat_status["status"] == "enabled"
+    assert threat_status["match_found"] is True
 
 
 def test_apply_safe_browsing_adds_score_and_evidence(monkeypatch) -> None:

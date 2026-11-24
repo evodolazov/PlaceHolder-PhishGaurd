@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 5000
-CMD ["python", "-m", "src.api.app"]
+CMD ["sh", "-c", "python -m flask --app src.api.app:create_app db upgrade && exec python -m src.api.app"]

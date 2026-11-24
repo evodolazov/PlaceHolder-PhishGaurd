@@ -16,7 +16,7 @@ analysis_bp = Blueprint("analysis", __name__)
 MAX_UPLOAD_BYTES = int(os.getenv("EMAIL_UPLOAD_MAX_BYTES", str(2 * 1024 * 1024)))
 
 
-def _message_body_parts(part):
+def _message_body_parts(part, alternative_html_parts=None):
     if part.get_content_disposition() == "attachment" or part.get_filename() is not None:
         return
     content_type = part.get_content_type()
@@ -29,14 +29,29 @@ def _message_body_parts(part):
     children = list(part.iter_parts())
     if content_type == "multipart/alternative":
         html_fallback = None
+        plain_fallback = None
+        html_alternatives = []
         for child in children:
-            representation = list(_message_body_parts(child))
+            representation = list(_message_body_parts(child, alternative_html_parts))
             content_types = {item.get_content_type() for item in representation}
             if "text/plain" in content_types:
-                yield from representation
-                return
+                if plain_fallback is None:
+                    plain_fallback = representation
             if html_fallback is None and "text/html" in content_types:
                 html_fallback = representation
+            if "text/html" in content_types:
+                html_alternatives.extend(
+                    item for item in representation if item.get_content_type() == "text/html"
+                )
+        if plain_fallback is not None:
+            if alternative_html_parts is not None:
+                alternative_html_parts.extend(html_alternatives)
+            plain_part_ids = {id(item) for item in plain_fallback}
+            yield from plain_fallback
+            for item in html_alternatives:
+                if id(item) not in plain_part_ids:
+                    yield item
+            return
         if html_fallback is not None:
             yield from html_fallback
         return
@@ -57,11 +72,11 @@ def _message_body_parts(part):
                 None,
             )
         if root is not None:
-            yield from _message_body_parts(root)
+            yield from _message_body_parts(root, alternative_html_parts)
         return
 
     for child in children:
-        yield from _message_body_parts(child)
+        yield from _message_body_parts(child, alternative_html_parts)
 
 
 def _pagination():
@@ -80,8 +95,8 @@ def _pagination():
 
 @analysis_bp.post("/api/v1/analyze/url")
 def analyze_url_endpoint() -> tuple[dict[str, object], int]:
-    payload = request.get_json(silent=True) or {}
-    if not payload or "url" not in payload:
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or "url" not in payload:
         return {"error": "invalid_url", "message": "A valid HTTP or HTTPS URL is required."}, 400
 
     raw_url = payload["url"]
@@ -161,11 +176,18 @@ def upload_email_endpoint() -> tuple[dict[str, object], int]:
         except Exception:
             return ""
 
+    alternative_html_parts = []
+    body_parts = list(_message_body_parts(message, alternative_html_parts))
+    alternative_html_part_ids = {id(part) for part in alternative_html_parts}
     plain_parts: list[str] = []
     html_parts: list[str] = []
-    for part in _message_body_parts(message):
+    feature_html_parts: list[str] = []
+    for part in body_parts:
         plain_parts.append(text_part(part))
-        html_parts.append(html_part(part))
+        html_content = html_part(part)
+        html_parts.append(html_content)
+        if id(part) not in alternative_html_part_ids:
+            feature_html_parts.append(html_content)
     headers = {str(key): str(value) for key, value in message.items()}
     payload = {
         "from": str(message.get("From") or ""),
@@ -176,7 +198,14 @@ def upload_email_endpoint() -> tuple[dict[str, object], int]:
         "headers": headers,
     }
     try:
-        result = EmailAnalysisService().analyze(payload)
+        result = EmailAnalysisService().analyze(
+            payload,
+            feature_body_html=(
+                "\n".join(item for item in feature_html_parts if item)
+                if alternative_html_part_ids
+                else None
+            ),
+        )
     except (InvalidEmail, ValueError) as exc:
         return {"error": "invalid_email", "message": str(exc)}, 400
     return result, 201

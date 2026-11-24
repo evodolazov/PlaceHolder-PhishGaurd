@@ -67,7 +67,7 @@ def lookup_url(url: str) -> list[dict[str, Any]]:
     )
     try:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-            payload = json.loads(response.read().decode("utf-8") or "{}")
+            payload = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError):
         return []
 
@@ -77,12 +77,20 @@ def lookup_url(url: str) -> list[dict[str, Any]]:
     return [match for match in matches if isinstance(match, dict)]
 
 
-def lookup_url_with_status(url: str) -> tuple[list[dict[str, Any]], dict[str, str]]:
+def lookup_url_with_status(url: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Return matches and a non-secret external-check status."""
     if not _enabled():
-        return [], {"status": "disabled", "message": "Google Safe Browsing is disabled."}
+        return [], {
+            "status": "disabled",
+            "match_found": None,
+            "message": "Google Safe Browsing is disabled.",
+        }
     if not _api_key():
-        return [], {"status": "unavailable", "message": "Google Safe Browsing is enabled but has no API key."}
+        return [], {
+            "status": "unavailable",
+            "match_found": None,
+            "message": "Google Safe Browsing is enabled but has no API key.",
+        }
 
     api_key = _api_key()
     body = {
@@ -103,24 +111,59 @@ def lookup_url_with_status(url: str) -> tuple[list[dict[str, Any]], dict[str, st
     )
     try:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-            payload = json.loads(response.read().decode("utf-8") or "{}")
+            payload = json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError):
-        return [], {"status": "unavailable", "message": "Google Safe Browsing lookup is currently unavailable."}
+        return [], {
+            "status": "unavailable",
+            "match_found": None,
+            "message": "Google Safe Browsing lookup is currently unavailable.",
+        }
 
-    matches = payload.get("matches") or []
-    if not isinstance(matches, list):
-        matches = []
-    clean_matches = [match for match in matches if isinstance(match, dict)]
-    return clean_matches, {"status": "enabled", "message": "Google Safe Browsing lookup completed."}
+    if not isinstance(payload, dict):
+        return [], {
+            "status": "unavailable",
+            "match_found": None,
+            "message": "Google Safe Browsing returned an invalid response.",
+        }
+    matches = payload.get("matches", [])
+    if not isinstance(matches, list) or any(not isinstance(match, dict) for match in matches):
+        return [], {
+            "status": "unavailable",
+            "match_found": None,
+            "message": "Google Safe Browsing returned an invalid response.",
+        }
+    match_found = bool(matches)
+    message = (
+        "Google Safe Browsing found a match."
+        if match_found
+        else "Google Safe Browsing found no matches."
+    )
+    return matches, {
+        "status": "enabled",
+        "match_found": match_found,
+        "message": message,
+    }
 
 
-def get_status() -> dict[str, str]:
+def get_status() -> dict[str, Any]:
     """Return a non-secret status describing external lookup availability."""
     if not _enabled():
-        return {"status": "disabled", "message": "Google Safe Browsing is disabled."}
+        return {
+            "status": "disabled",
+            "match_found": None,
+            "message": "Google Safe Browsing is disabled.",
+        }
     if not _api_key():
-        return {"status": "unavailable", "message": "Google Safe Browsing is enabled but has no API key."}
-    return {"status": "enabled", "message": "Google Safe Browsing is enabled."}
+        return {
+            "status": "unavailable",
+            "match_found": None,
+            "message": "Google Safe Browsing is enabled but has no API key.",
+        }
+    return {
+        "status": "enabled",
+        "match_found": None,
+        "message": "Google Safe Browsing is enabled; no lookup status is available.",
+    }
 
 
 def _evidence_for_match(url: str, match: dict[str, Any]) -> dict[str, Any]:

@@ -5,6 +5,10 @@ from __future__ import annotations
 from src.database.repositories.analysis_repository import AnalysisRepository
 from src.engines.url.analyzer import analyze_url
 from src.engines.url.sanitizer import sanitize_url_for_storage
+from src.services.analysis_metadata import (
+    features_with_threat_status,
+    features_without_threat_status,
+)
 
 
 class URLAnalysisService:
@@ -16,6 +20,7 @@ class URLAnalysisService:
     def analyze(self, raw_url: str) -> dict[str, object]:
         payload = analyze_url(raw_url)
         safe_url = sanitize_url_for_storage(raw_url)
+        threat_status = payload["threat_intelligence"]
         analysis = self.repository.persist_analysis(
             raw_url=safe_url,
             normalized_url=payload["normalized_url"],
@@ -25,7 +30,7 @@ class URLAnalysisService:
             classification=payload["classification"],
             risk_score=payload["risk_score"],
             confidence=payload["confidence"],
-            features=payload["features"],
+            features=features_with_threat_status(payload["features"], threat_status),
             evidence=payload["evidence"],
         )
 
@@ -36,9 +41,9 @@ class URLAnalysisService:
             "classification": analysis.classification,
             "risk_score": analysis.risk_score,
             "confidence": analysis.confidence,
-            "features": analysis.features,
+            "features": payload["features"],
             "evidence": analysis.evidence,
-            "threat_intelligence": payload.get("threat_intelligence", {"status": "disabled", "message": "Not reported."}),
+            "threat_intelligence": threat_status,
             "created_at": analysis.created_at.isoformat(),
         }
 
@@ -47,6 +52,7 @@ class URLAnalysisService:
         if record is None:
             return None
 
+        features, threat_status = features_without_threat_status(record.features)
         return {
             "analysis_id": record.id,
             "url": record.url.raw_url,
@@ -54,9 +60,9 @@ class URLAnalysisService:
             "classification": record.classification,
             "risk_score": record.risk_score,
             "confidence": record.confidence,
-            "features": record.features,
+            "features": features,
             "evidence": record.evidence,
-            "threat_intelligence": {"status": "enabled" if any(e.get("source") == "google_safe_browsing" for e in record.evidence) else "disabled", "message": "Stored threat-intelligence evidence is shown where available."},
+            "threat_intelligence": threat_status,
             "created_at": record.created_at.isoformat(),
         }
 

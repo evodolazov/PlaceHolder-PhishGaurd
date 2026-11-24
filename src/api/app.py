@@ -64,8 +64,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     def serve_app_js():
         return send_from_directory(FRONTEND_DIR, "app.js")
 
-    with app.app_context():
-        db.create_all()
+    # Test applications use SQLAlchemy to build isolated in-memory schemas.
+    # Production schemas are initialized and upgraded exclusively by Alembic.
+    if app.config.get("TESTING"):
+        with app.app_context():
+            db.create_all()
 
     return app
 

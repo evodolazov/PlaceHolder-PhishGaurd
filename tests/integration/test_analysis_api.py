@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 
 from src.api.app import create_app
+from src.database.connection import db
+from src.database.models.url import AnalysisRecord
 
 
 @pytest.fixture()
@@ -41,6 +43,113 @@ def test_valid_url_analysis(client) -> None:
     assert payload["confidence"] is None
     assert "analysis_id" in payload
     assert payload["risk_score"] >= 0
+
+
+@pytest.mark.parametrize(
+    ("matches", "threat_status"),
+    [
+        (
+            [],
+            {
+                "status": "disabled",
+                "match_found": None,
+                "message": "Google Safe Browsing is disabled.",
+            },
+        ),
+        (
+            [],
+            {
+                "status": "enabled",
+                "match_found": False,
+                "message": "Google Safe Browsing found no matches.",
+            },
+        ),
+        (
+            [{"threatType": "SOCIAL_ENGINEERING"}],
+            {
+                "status": "enabled",
+                "match_found": True,
+                "message": "Google Safe Browsing found a match.",
+            },
+        ),
+        (
+            [],
+            {
+                "status": "unavailable",
+                "match_found": None,
+                "message": "Google Safe Browsing lookup is currently unavailable.",
+            },
+        ),
+    ],
+)
+def test_safe_browsing_status_is_preserved_on_retrieval(
+    client,
+    monkeypatch,
+    matches,
+    threat_status,
+) -> None:
+    monkeypatch.setattr(
+        "src.engines.threat_intel.safe_browsing.lookup_url_with_status",
+        lambda _url: (matches, threat_status),
+    )
+
+    created = client.post("/api/v1/analyze/url", json={"url": "https://example.com"})
+    assert created.status_code == 201
+    initial = created.get_json()
+    assert initial["threat_intelligence"] == threat_status
+    assert "_phishguard_threat_intelligence" not in initial["features"]
+
+    retrieved = client.get(f"/api/v1/analysis/{initial['analysis_id']}")
+    assert retrieved.status_code == 200
+    saved = retrieved.get_json()
+    assert saved["threat_intelligence"] == threat_status
+    assert saved["features"] == initial["features"]
+    assert ("google_safe_browsing" in str(saved["evidence"])) is bool(threat_status["match_found"])
+
+
+@pytest.mark.parametrize(
+    ("saved_features", "expected_features"),
+    [
+        ({"at_symbol_count": 0}, {"at_symbol_count": 0}),
+        (
+            {"at_symbol_count": 0, "_phishguard_threat_intelligence": "malformed"},
+            {"at_symbol_count": 0},
+        ),
+        (
+            {
+                "at_symbol_count": 0,
+                "_phishguard_threat_intelligence": {
+                    "status": "not-a-status",
+                    "match_found": False,
+                    "message": "Malformed status.",
+                },
+            },
+            {"at_symbol_count": 0},
+        ),
+        (["malformed feature data"], {}),
+    ],
+)
+def test_url_retrieval_handles_missing_or_malformed_threat_metadata(
+    client,
+    saved_features,
+    expected_features,
+) -> None:
+    created = client.post("/api/v1/analyze/url", json={"url": "https://example.com"})
+    assert created.status_code == 201
+    analysis_id = created.get_json()["analysis_id"]
+
+    with client.application.app_context():
+        record = db.session.get(AnalysisRecord, analysis_id)
+        record.features = saved_features
+        db.session.commit()
+
+    retrieved = client.get(f"/api/v1/analysis/{analysis_id}")
+
+    assert retrieved.status_code == 200
+    payload = retrieved.get_json()
+    assert payload["features"] == expected_features
+    assert payload["threat_intelligence"]["status"] == "unknown"
+    assert payload["threat_intelligence"]["match_found"] is None
 
 
 def test_sensitive_url_analysis_retrieval_is_sanitized(client) -> None:
@@ -87,8 +196,42 @@ def test_invalid_url_returns_400(client) -> None:
 
 
 def test_missing_url_field_returns_400(client) -> None:
+    response = client.post("/api/v1/analyze/url", json={"other": "value"})
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_url"
+
+
+def test_empty_url_object_returns_400(client) -> None:
     response = client.post("/api/v1/analyze/url", json={})
     assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_url"
+
+
+def test_json_null_url_payload_returns_400(client) -> None:
+    response = client.post(
+        "/api/v1/analyze/url",
+        data="null",
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_url"
+
+
+def test_malformed_json_url_payload_returns_400(client) -> None:
+    response = client.post(
+        "/api/v1/analyze/url",
+        data='{"url":',
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_url"
+
+
+@pytest.mark.parametrize("payload", [1, "url", ["url"]])
+def test_non_object_url_payload_returns_400(client, payload) -> None:
+    response = client.post("/api/v1/analyze/url", json=payload)
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "invalid_url"
 
 
 def test_analysis_retrieval_by_id(client) -> None:
