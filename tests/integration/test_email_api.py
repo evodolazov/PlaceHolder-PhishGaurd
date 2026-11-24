@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+
 import pytest
 
 from src.api.app import create_app
@@ -78,3 +80,31 @@ def test_missing_email_analysis_returns_404(client) -> None:
     response = client.get("/api/v1/email-analysis/999999")
     assert response.status_code == 404
     assert response.get_json()["error"] == "not_found"
+
+
+def test_reply_to_password_harvesting_eml_is_high_risk(client) -> None:
+    eml = (
+        b"From: IT Help Desk <helpdesk@campus-it-notice.example>\r\n"
+        b"Reply-To: credential-collection@external-mail.example\r\n"
+        b"To: student@example.net\r\n"
+        b"Subject: Action Required: Mailbox Password Expiration\r\n"
+        b"Date: Mon, 24 Nov 2026 09:00:00 -0500\r\n"
+        b"Message-ID: <reply-to-regression@example.com>\r\n"
+        b"Content-Type: text/plain; charset=utf-8\r\n\r\n"
+        b"Reply with your username and current password.\r\n"
+        b"This request is urgent. Failure to respond within two hours may result in mailbox suspension."
+    )
+    response = client.post(
+        "/api/v1/analyze/email/upload",
+        data={"file": (io.BytesIO(eml), "05_reply_to_password_harvesting.eml")},
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload["classification"] == "high_risk"
+    assert payload["risk_score"] >= 60
+    indicators = {item["indicator"] for item in payload["evidence"]}
+    assert "email.from_reply_to_mismatch" in indicators
+    assert "email.sensitive_reply_to_mismatch" in indicators
+    assert "email.urgency_language" in indicators
+    assert "email.credential_request" in indicators

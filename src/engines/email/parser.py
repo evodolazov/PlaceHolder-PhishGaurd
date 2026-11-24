@@ -105,8 +105,24 @@ def _has_header(headers: dict[str, Any] | None, name: str) -> bool:
 
 
 def _mailbox_parts(value: str) -> tuple[str, str, str, str]:
-    display_name, address = parseaddr(value or "")
+    raw = str(value or "").strip()
+    display_name, address = parseaddr(raw)
+    if not address:
+        mailto_match = re.search(r"mailto:([^\s\]>)]+)", raw, re.IGNORECASE)
+        bracket_match = re.search(r"\[([^\[\]]*@[^\[\]]+\.[^\[\]]+)\]", raw)
+        angle_match = re.search(r"<([^<>\s]+@[^<>\s]+\.[^<>\s]+)>", raw)
+        address = next(
+            (match.group(1).strip() for match in (mailto_match, bracket_match, angle_match) if match),
+            "",
+        )
+        display_name = raw
+        for marker in (angle_match.group(0) if angle_match else "", bracket_match.group(0) if bracket_match else ""):
+            if marker:
+                display_name = display_name.replace(marker, "")
+        display_name = display_name.strip(" []")
     address = address.strip().lower()
+    if address and "@" not in address:
+        address = ""
     domain = address.split("@", 1)[1].lower() if "@" in address else ""
     extracted = tldextract.extract(domain, include_psl_private_domains=False) if domain else None
     registrable = ""
@@ -187,6 +203,11 @@ def parse_email(payload: dict[str, Any]) -> ParsedEmail:
         headers = {}
     if not isinstance(headers, dict):
         raise InvalidEmail("headers must be an object when provided.")
+
+    if not from_raw:
+        from_raw = _header_value(headers, "From")
+    if not reply_to_raw:
+        reply_to_raw = _header_value(headers, "Reply-To")
 
     if not any([from_raw, reply_to_raw, subject, body_text.strip(), body_html.strip()]):
         raise InvalidEmail("An email from, subject, or body is required.")

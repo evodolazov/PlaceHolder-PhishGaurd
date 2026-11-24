@@ -76,6 +76,8 @@ def from_reply_to_mismatch_rule(features: EmailFeatures) -> EmailRuleResult:
         value={
             "from_domain": features.from_registrable_domain,
             "reply_to_domain": features.reply_to_registrable_domain,
+            "from_address_domain": features.from_domain,
+            "reply_to_address_domain": features.reply_to_domain,
         },
         description="The Reply-To domain does not match the From domain.",
     )
@@ -128,6 +130,51 @@ def credential_request_rule(features: EmailFeatures) -> EmailRuleResult:
     )
 
 
+def external_document_request_rule(features: EmailFeatures) -> EmailRuleResult:
+    return _result(
+        rule_id="email.external_document_request",
+        fired=features.external_document_request,
+        weight=35,
+        severity="high",
+        value={
+            "document_portal_keyword_count": features.document_portal_keyword_count,
+            "link_count": features.link_count,
+        },
+        description="The message combines document-portal language with an external destination link.",
+    )
+
+
+def sensitive_reply_to_mismatch_rule(features: EmailFeatures) -> EmailRuleResult:
+    sensitive_request = features.credential_keyword_count > 0 or features.urgency_keyword_count > 0
+    fired = features.from_reply_to_mismatch and sensitive_request
+    return _result(
+        rule_id="email.sensitive_reply_to_mismatch",
+        fired=fired,
+        weight=35,
+        severity="high",
+        value={
+            "from_domain": features.from_registrable_domain,
+            "reply_to_domain": features.reply_to_registrable_domain,
+            "from_address_domain": features.from_domain,
+            "reply_to_address_domain": features.reply_to_domain,
+            "credential_keyword_count": features.credential_keyword_count,
+            "urgency_keyword_count": features.urgency_keyword_count,
+        },
+        description="A Reply-To domain differs and the message combines the mismatch with a credential or urgency request.",
+    )
+
+
+def obfuscated_destination_rule(features: EmailFeatures) -> EmailRuleResult:
+    return _result(
+        rule_id="email.obfuscated_destination",
+        fired=features.obfuscated_url_count > 0,
+        weight=35,
+        severity="high",
+        value=features.obfuscated_url_count,
+        description="A destination URL uses an authority @ sign that may hide the true hostname.",
+    )
+
+
 def missing_core_headers_rule(features: EmailFeatures) -> EmailRuleResult:
     return _result(
         rule_id="email.missing_core_headers",
@@ -147,6 +194,9 @@ DEFAULT_RULES: tuple[RuleFn, ...] = (
     urgency_language_rule,
     credential_request_rule,
     missing_core_headers_rule,
+    external_document_request_rule,
+    sensitive_reply_to_mismatch_rule,
+    obfuscated_destination_rule,
 )
 
 

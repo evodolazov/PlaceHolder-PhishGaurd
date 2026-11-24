@@ -10,6 +10,8 @@ from src.engines.email.rules import (
     link_text_href_mismatch_rule,
     missing_core_headers_rule,
     urgency_language_rule,
+    external_document_request_rule,
+    sensitive_reply_to_mismatch_rule,
 )
 
 
@@ -83,3 +85,45 @@ def test_missing_core_headers_only_when_headers_submitted() -> None:
     with_headers = _features({"from": "a@example.com", "subject": "Hi", "headers": {}})
     assert missing_core_headers_rule(without_headers).fired is False
     assert missing_core_headers_rule(with_headers).fired is True
+
+
+def test_external_document_request_rule_requires_combined_indicators() -> None:
+    suspicious = _features(
+        {
+            "from": "Microsoft Support <support@external.example>",
+            "subject": "SharePoint document notification",
+            "body_html": '<a href="https://portal-login.example/file">Review document in SharePoint</a>',
+        }
+    )
+    assert external_document_request_rule(suspicious).fired is True
+
+    harmless = _features(
+        {
+            "from": "Alice <alice@company.example>",
+            "subject": "Project document",
+            "body_html": '<a href="https://docs.example/project.pdf">Open document</a>',
+        }
+    )
+    assert external_document_request_rule(harmless).fired is False
+
+
+def test_sensitive_reply_to_mismatch_combines_with_harvesting_language() -> None:
+    suspicious = _features(
+        {
+            "from": "Billing <billing@company.example>",
+            "reply_to": "replies@gmail.com",
+            "subject": "Urgent account verification",
+            "body_text": "Sign in and confirm your password.",
+        }
+    )
+    assert sensitive_reply_to_mismatch_rule(suspicious).fired is True
+
+    legitimate = _features(
+        {
+            "from": "Billing <billing@company.example>",
+            "reply_to": "support@company.example",
+            "subject": "Invoice for next month",
+            "body_text": "Use the invoice number if you have questions.",
+        }
+    )
+    assert sensitive_reply_to_mismatch_rule(legitimate).fired is False
