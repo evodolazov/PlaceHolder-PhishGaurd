@@ -1,4 +1,4 @@
-"""Deterministic URL feature extraction for Milestone 0."""
+﻿"""Deterministic URL feature extraction for Milestone 0."""
 
 from __future__ import annotations
 
@@ -101,8 +101,7 @@ def _count(url_text: str, symbol: str) -> int:
 
 
 def _count_user_info_at_symbols(normalized_url: NormalizedURL) -> int:
-    parsed = urlsplit(normalized_url.normalized_url)
-    return parsed.netloc.count("@")
+    return 1 if normalized_url.username is not None else 0
 
 
 def extract_features(normalized_url: NormalizedURL) -> URLFeatures:

@@ -1,9 +1,10 @@
-"""Service layer that coordinates analysis and persistence."""
+﻿"""Service layer that coordinates analysis and persistence."""
 
 from __future__ import annotations
 
 from src.database.repositories.analysis_repository import AnalysisRepository
 from src.engines.url.analyzer import analyze_url
+from src.engines.url.sanitizer import sanitize_url_for_storage
 
 
 class URLAnalysisService:
@@ -14,8 +15,9 @@ class URLAnalysisService:
 
     def analyze(self, raw_url: str) -> dict[str, object]:
         payload = analyze_url(raw_url)
+        safe_url = sanitize_url_for_storage(raw_url)
         analysis = self.repository.persist_analysis(
-            raw_url=raw_url,
+            raw_url=safe_url,
             normalized_url=payload["normalized_url"],
             scheme=payload["scheme"],
             hostname=payload["hostname"],
@@ -29,7 +31,7 @@ class URLAnalysisService:
 
         return {
             "analysis_id": analysis.id,
-            "url": raw_url,
+            "url": safe_url,
             "normalized_url": payload["normalized_url"],
             "classification": analysis.classification,
             "risk_score": analysis.risk_score,

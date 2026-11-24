@@ -1,6 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+from src.engines.url.features import extract_features
 from src.engines.url.normalizer import normalize_url, validate_url
+from src.fusion.risk_engine import score_url
 
 
 def test_normal_https_url() -> None:
@@ -28,6 +30,40 @@ def test_port_is_preserved() -> None:
     normalized = normalize_url("https://example.com:8443/path")
     assert normalized.port == 8443
     assert normalized.normalized_url == "https://example.com:8443/path"
+
+
+def test_url_credentials_and_sensitive_query_values_are_redacted() -> None:
+    normalized = normalize_url("https://user:pass@example.com/path?token=abc123&password=supersecret&safe=1")
+    assert normalized.username == "user"
+    assert normalized.password == "pass"
+    assert "user:pass" not in normalized.raw_url
+    assert "https://example.com/path" in normalized.raw_url
+    assert "token=%5BREDACTED%5D" in normalized.raw_url
+    assert "password=%5BREDACTED%5D" in normalized.raw_url
+    assert "abc123" not in normalized.raw_url
+    assert "supersecret" not in normalized.normalized_url
+    assert "safe=1" in normalized.normalized_url
+
+
+def test_confidence_is_null_when_no_statistical_measure_exists() -> None:
+    normalized = normalize_url("https://example.com/login")
+    assessment = score_url(extract_features(normalized), normalized)
+    assert assessment.confidence is None
+    assert assessment.heuristic_strength is not None
+    assert assessment.heuristic_strength <= 1.0
+
+
+def test_sensitive_query_values_are_redacted_case_insensitive() -> None:
+    sanitized = normalize_url(
+        "https://example.com/path?token=abc&API_KEY=secret&safe=keep&PASSWORD=hidden&Token=again"
+    )
+    assert sanitized.normalized_url.startswith("https://example.com/path?")
+    assert "token=%5BREDACTED%5D" in sanitized.normalized_url
+    assert "API_KEY=%5BREDACTED%5D" in sanitized.normalized_url
+    assert "PASSWORD=%5BREDACTED%5D" in sanitized.normalized_url
+    assert "safe=keep" in sanitized.normalized_url
+    assert "abc" not in sanitized.normalized_url
+    assert "secret" not in sanitized.normalized_url
 
 
 def test_malformed_url_is_rejected() -> None:

@@ -150,6 +150,12 @@ curl -X POST http://127.0.0.1:5000/api/v1/analyze/url \
 }
 ```
 
+## URL safety and risk semantics
+
+The URL analysis pipeline treats the submitted URL as an input for analysis, but never persists or returns embedded credentials, passwords, or sensitive query values. A dedicated sanitizer strips userinfo and redacts known secret-bearing query keys before records are stored or exposed in API responses. The normalized URL used for analysis still preserves hostname and structural signals such as userinfo markers, but the public-safe representation stored for history is intentionally different.
+
+Risk score and confidence are intentionally separate concepts in the scoring engine: the risk score is the combined heuristic assessment, while confidence is an explicit measure of the certainty of the heuristic signal rather than a direct transformation of the risk score.
+
 ## Current limitations
 
 This Milestone 0 implementation does not:

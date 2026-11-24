@@ -1,4 +1,4 @@
-"""URL validation and normalization for Milestone 0."""
+﻿"""URL validation and normalization for Milestone 0."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 import tldextract
 
 from src.core.exceptions import InvalidURL
+from src.engines.url.sanitizer import redact_sensitive_query_parameters, sanitize_url_for_storage
 
 
 @dataclass(frozen=True)
@@ -34,8 +35,6 @@ class NormalizedURL:
             "hostname": self.hostname,
             "registrable_domain": self.registrable_domain,
             "port": self.port,
-            "username": self.username,
-            "password": self.password,
             "path": self.path,
             "query": self.query,
             "fragment": self.fragment,
@@ -89,7 +88,7 @@ def normalize_url(raw_url: str) -> NormalizedURL:
     username = parsed.username
     password = parsed.password
     path = parsed.path or "/"
-    query = parsed.query
+    query = redact_sensitive_query_parameters(parsed.query)
     fragment = parsed.fragment
 
     extracted = tldextract.extract(hostname, include_psl_private_domains=False)
@@ -100,11 +99,6 @@ def normalize_url(raw_url: str) -> NormalizedURL:
     )
 
     authority = hostname
-    if username is not None:
-        userinfo = username
-        if password is not None:
-            userinfo = f"{username}:{password}"
-        authority = f"{userinfo}@{hostname}"
     if port is not None:
         authority = f"{authority}:{port}"
 
@@ -115,7 +109,7 @@ def normalize_url(raw_url: str) -> NormalizedURL:
         normalized = f"{normalized}#{fragment}"
 
     return NormalizedURL(
-        raw_url=value,
+        raw_url=sanitize_url_for_storage(value),
         normalized_url=normalized,
         scheme=scheme,
         hostname=hostname,

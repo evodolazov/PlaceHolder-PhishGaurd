@@ -43,3 +43,18 @@ def test_url_component_is_capped() -> None:
     features = extract_features(parse_email({"from": "a@example.com", "subject": "Hi"}))
     assessment = score_email(features, [{"url": "http://192.0.2.1/", "risk_score": 100, "evidence": []}])
     assert assessment.risk_score == 40
+
+
+def test_embedded_url_results_are_sanitized() -> None:
+    result = analyze_email(
+        {
+            "from": "support@example.com",
+            "body_html": '<a href="https://user:pass@evil.example/login?token=abc123&safe=1">Click here</a>',
+        }
+    )
+    assert result["urls"]
+    assert result["urls"][0]["url"].startswith("https://evil.example/login?")
+    assert "pass" not in result["urls"][0]["url"]
+    assert "abc123" not in result["urls"][0]["url"]
+    assert "token=%5BREDACTED%5D" in result["urls"][0]["url"]
+    assert "safe=1" in result["urls"][0]["url"]

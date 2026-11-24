@@ -6,6 +6,8 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
+from flask import Flask, send_from_directory
+from pathlib import Path
 
 from src.api.routes.analysis import analysis_bp
 from src.api.routes.health import health_bp
@@ -18,6 +20,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     """Create a configured Flask application instance."""
     load_dotenv()
     app = Flask(__name__)
+    FRONTEND_DIR = Path(__file__).resolve().parents[2]/ "frontend"
     app.config.from_mapping(
         SECRET_KEY=os.getenv("SECRET_KEY", "dev-secret-key"),
         JSON_SORT_KEYS=False,
@@ -31,6 +34,23 @@ def create_app(test_config: dict | None = None) -> Flask:
     init_db(app)
     app.register_blueprint(health_bp)
     app.register_blueprint(analysis_bp)
+
+    @app.route("/")
+    def home():
+        """Serve the frontend index.html file."""
+        return send_from_directory(FRONTEND_DIR, "index.html")
+
+    @app.route("/style.css")
+    def serve_css():
+        return send_from_directory(FRONTEND_DIR, "style.css")
+
+    @app.route("/api.js")
+    def serve_api_js():
+        return send_from_directory(FRONTEND_DIR, "api.js")
+
+    @app.route("/app.js")
+    def serve_app_js():
+        return send_from_directory(FRONTEND_DIR, "app.js")
 
     with app.app_context():
         db.create_all()
