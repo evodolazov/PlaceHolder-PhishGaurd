@@ -1,0 +1,17 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///phishguard.db}
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      SAFE_BROWSING_ENABLED: ${SAFE_BROWSING_ENABLED:-false}
+      GOOGLE_SAFE_BROWSING_API_KEY: ${GOOGLE_SAFE_BROWSING_API_KEY:-}
+      EMAIL_UPLOAD_MAX_BYTES: ${EMAIL_UPLOAD_MAX_BYTES:-2097152}
+      RETAIN_EMAIL_CONTENTS: ${RETAIN_EMAIL_CONTENTS:-true}
+    volumes:
+      - phishguard-data:/app/instance
+
+volumes:
+  phishguard-data:

@@ -3,56 +3,59 @@
 ## Prerequisites
 
 - Python 3.12+
-- PostgreSQL for local development
+- PostgreSQL for normal development or SQLite for lightweight local/test use
 - Git
+- Chrome for extension demonstration
 
 ## Setup
 
-```bash
-python -m venv .venv
+```bat
+py -3.12 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
+copy .env.example .env
 ```
 
-## Environment configuration
+## Environment
 
-Copy `.env.example` to `.env` and update the database settings if needed.
+| Variable | Purpose | Default |
+|---|---|---|
+| `DATABASE_URL` | SQLAlchemy database URL | `sqlite:///phishguard.db` |
+| `SECRET_KEY` | Flask secret | development fallback |
+| `SAFE_BROWSING_ENABLED` | Enable external Google lookup | `false` |
+| `GOOGLE_SAFE_BROWSING_API_KEY` | Google API key | empty |
+| `EMAIL_UPLOAD_MAX_BYTES` | Maximum `.eml` upload size | `2097152` |
+| `RETAIN_EMAIL_CONTENTS` | Store original email bodies/headers | `true` |
+| `PORT` | Flask listen port | `5000` |
 
-```env
-DATABASE_URL=postgresql://phishguard:phishguard@localhost:5432/phishguard
-SECRET_KEY=change-me
-SAFE_BROWSING_ENABLED=false
-GOOGLE_SAFE_BROWSING_API_KEY=
+The backend loads credentials exclusively from environment variables. A Safe Browsing lookup transmits the submitted URL to Google.
+
+## Database
+
+Fresh development setup:
+
+```bat
+flask --app src.api.app:create_app db upgrade
 ```
 
-The project also supports SQLite test configuration when using isolated test runs.
+Create a migration after model changes:
 
-Google Safe Browsing is optional. Set `SAFE_BROWSING_ENABLED=true` and add an API key to check submitted URLs (and links inside emails) against Google's lists. If the key is missing or the request fails, analysis still returns the local heuristic score.
+```bat
+flask --app src.api.app:create_app db migrate -m "describe change"
+flask --app src.api.app:create_app db upgrade
+```
 
-## Run the application
+The application also retains `db.create_all()` for fresh test/application setup, but evolved databases should use migrations.
 
-```bash
+## Run and tests
+
+```bat
 flask --app src.api.app:create_app run --debug
+.\.venv\Scripts\python.exe -m pytest -q
 ```
 
-or:
+## Privacy and email uploads
 
-```bash
-python -m src.api.app
-```
+Set `RETAIN_EMAIL_CONTENTS=false` to avoid storing submitted bodies and headers while preserving analysis results and explanations. URL userinfo and secret-bearing query values are sanitized before persistence and API/history output.
 
-## Run tests
-
-```bash
-pytest -q
-```
-
-## Seed the DB (optional)
-
-```bash
-python scripts/seed_database.py
-```
-
-## Milestone 0 limitations
-
-This milestone does not crawl webpages, use machine learning, inspect mailboxes, or provide browser extension functionality. Google Safe Browsing is an optional lookup when enabled.
+`.eml` uploads are size-limited and parsed with Python's standard email library. Attachments are never extracted or executed, and HTML remote resources are not fetched. Uploaded content is not written to application logs.

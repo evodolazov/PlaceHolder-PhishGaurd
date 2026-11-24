@@ -20,6 +20,7 @@ class RiskAssessment:
     evidence: list[dict[str, Any]]
     ml_probability: float | None = None
     heuristic_strength: float | None = None
+    threat_intelligence: dict[str, str] | None = None
 
 
 def _classify(score: int) -> str:

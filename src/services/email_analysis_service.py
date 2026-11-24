@@ -6,6 +6,7 @@ from typing import Any
 
 from src.database.repositories.email_analysis_repository import EmailAnalysisRepository
 from src.engines.email.analyzer import analyze_email
+from src.engines.threat_intel.safe_browsing import get_status
 
 
 class EmailAnalysisService:
@@ -42,6 +43,7 @@ class EmailAnalysisService:
             "features": analysis.features,
             "evidence": analysis.evidence,
             "urls": analysis.urls,
+            "threat_intelligence": get_status(),
             "created_at": analysis.created_at.isoformat(),
         }
 
@@ -61,5 +63,31 @@ class EmailAnalysisService:
             "features": record.features,
             "evidence": record.evidence,
             "urls": record.urls,
+            "threat_intelligence": {"status": "enabled" if any(e.get("source") == "google_safe_browsing" for e in record.evidence) else "disabled", "message": "Stored threat-intelligence evidence is shown where available."},
             "created_at": record.created_at.isoformat(),
         }
+
+    def list_analyses(self, page: int, page_size: int, risk_level: str = "", search: str = "") -> dict[str, object]:
+        records, total = self.repository.list_analyses(page, page_size, risk_level, search)
+        return {
+            "items": [
+                {
+                    "analysis_id": record.id,
+                    "from": record.email.from_address,
+                    "reply_to": record.email.reply_to,
+                    "subject": record.email.subject,
+                    "classification": record.classification,
+                    "risk_score": record.risk_score,
+                    "confidence": record.confidence,
+                    "created_at": record.created_at.isoformat(),
+                }
+                for record in records
+            ],
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "pages": max(1, (total + page_size - 1) // page_size),
+        }
+
+    def delete_analysis(self, analysis_id: int) -> bool:
+        return self.repository.delete_analysis(analysis_id)

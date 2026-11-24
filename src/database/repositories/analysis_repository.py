@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy import desc
 
 from src.database.connection import db
 from src.database.models.url import AnalysisRecord, URLRecord
@@ -101,3 +102,25 @@ class AnalysisRepository:
 
     def get_analysis(self, analysis_id: int) -> AnalysisRecord | None:
         return self.session.get(AnalysisRecord, analysis_id)
+
+    def list_analyses(self, page: int, page_size: int, risk_level: str = "", search: str = "") -> tuple[list[AnalysisRecord], int]:
+        stmt = select(AnalysisRecord).join(URLRecord)
+        if risk_level:
+            stmt = stmt.where(AnalysisRecord.classification == risk_level)
+        if search:
+            pattern = f"%{search}%"
+            stmt = stmt.where((URLRecord.raw_url.ilike(pattern)) | (URLRecord.hostname.ilike(pattern)))
+        count_stmt = stmt.with_only_columns(AnalysisRecord.id)
+        total = len(self.session.execute(count_stmt).all())
+        records = self.session.execute(
+            stmt.order_by(desc(AnalysisRecord.created_at)).limit(page_size).offset((page - 1) * page_size)
+        ).scalars().all()
+        return list(records), total
+
+    def delete_analysis(self, analysis_id: int) -> bool:
+        record = self.session.get(AnalysisRecord, analysis_id)
+        if record is None:
+            return False
+        self.session.delete(record)
+        self.session.commit()
+        return True

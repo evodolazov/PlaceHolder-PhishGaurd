@@ -20,6 +20,17 @@ def test_health_endpoint(client) -> None:
     assert payload["version"] == "0.1.0"
 
 
+def test_extension_origin_receives_safe_cors_headers(client) -> None:
+    response = client.post(
+        "/api/v1/analyze/url",
+        json={"url": "https://example.com"},
+        headers={"Origin": "chrome-extension://audit-extension-id"},
+    )
+    assert response.status_code == 201
+    assert response.headers["Access-Control-Allow-Origin"] == "chrome-extension://audit-extension-id"
+    assert "Content-Type" in response.headers["Access-Control-Allow-Headers"]
+
+
 def test_valid_url_analysis(client) -> None:
     response = client.post("/api/v1/analyze/url", json={"url": "https://example.com"})
     assert response.status_code == 201
@@ -97,3 +108,27 @@ def test_nonexistent_analysis_returns_404(client) -> None:
     assert response.status_code == 404
     payload = response.get_json()
     assert payload["error"] == "not_found"
+
+
+def test_url_history_pagination_filtering_and_deletion(client) -> None:
+    first = client.post("/api/v1/analyze/url", json={"url": "https://example.com"}).get_json()["analysis_id"]
+    client.post("/api/v1/analyze/url", json={"url": "https://suspicious-example.com/login"})
+
+    listing = client.get("/api/v1/analyses/url?page=1&page_size=10&search=example&risk_level=low_risk")
+    assert listing.status_code == 200
+    payload = listing.get_json()
+    assert payload["page"] == 1
+    assert payload["page_size"] == 10
+    assert payload["total"] >= 1
+    assert "items" in payload
+    assert "abc123" not in str(payload)
+
+    deleted = client.delete(f"/api/v1/analysis/{first}")
+    assert deleted.status_code == 200
+    assert client.get(f"/api/v1/analysis/{first}").status_code == 404
+
+
+def test_url_history_rejects_invalid_pagination(client) -> None:
+    assert client.get("/api/v1/analyses/url?page=0").status_code == 400
+    assert client.get("/api/v1/analyses/url?page_size=101").status_code == 400
+    assert client.get("/api/v1/analyses/url?risk_level=unknown").status_code == 400

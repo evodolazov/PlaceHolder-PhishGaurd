@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "PhishGuard Scanner",
+  "description": "Manually scan the active tab URL with a configured PhishGuard backend.",
+  "version": "0.1.0",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*"
+  ],
+  "action": {
+    "default_title": "Scan with PhishGuard",
+    "default_popup": "popup.html"
+  }
+}

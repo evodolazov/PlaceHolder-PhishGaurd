@@ -77,6 +77,52 @@ def lookup_url(url: str) -> list[dict[str, Any]]:
     return [match for match in matches if isinstance(match, dict)]
 
 
+def lookup_url_with_status(url: str) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """Return matches and a non-secret external-check status."""
+    if not _enabled():
+        return [], {"status": "disabled", "message": "Google Safe Browsing is disabled."}
+    if not _api_key():
+        return [], {"status": "unavailable", "message": "Google Safe Browsing is enabled but has no API key."}
+
+    api_key = _api_key()
+    body = {
+        "client": {"clientId": "phishguard", "clientVersion": "0.1.0"},
+        "threatInfo": {
+            "threatTypes": list(THREAT_TYPES),
+            "platformTypes": ["ANY_PLATFORM"],
+            "threatEntryTypes": ["URL"],
+            "threatEntries": [{"url": url}],
+        },
+    }
+    query = urllib.parse.urlencode({"key": api_key})
+    request = urllib.request.Request(
+        f"{LOOKUP_ENDPOINT}?{query}",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8") or "{}")
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError):
+        return [], {"status": "unavailable", "message": "Google Safe Browsing lookup is currently unavailable."}
+
+    matches = payload.get("matches") or []
+    if not isinstance(matches, list):
+        matches = []
+    clean_matches = [match for match in matches if isinstance(match, dict)]
+    return clean_matches, {"status": "enabled", "message": "Google Safe Browsing lookup completed."}
+
+
+def get_status() -> dict[str, str]:
+    """Return a non-secret status describing external lookup availability."""
+    if not _enabled():
+        return {"status": "disabled", "message": "Google Safe Browsing is disabled."}
+    if not _api_key():
+        return {"status": "unavailable", "message": "Google Safe Browsing is enabled but has no API key."}
+    return {"status": "enabled", "message": "Google Safe Browsing is enabled."}
+
+
 def _evidence_for_match(url: str, match: dict[str, Any]) -> dict[str, Any]:
     threat_type = str(match.get("threatType") or "UNKNOWN")
     indicator = f"gsb.{threat_type.lower()}"
@@ -95,9 +141,17 @@ def _evidence_for_match(url: str, match: dict[str, Any]) -> dict[str, Any]:
 
 def apply_safe_browsing(url: str, assessment: RiskAssessment) -> RiskAssessment:
     """Bump the heuristic score when Safe Browsing reports a match."""
-    matches = lookup_url(url)
+    matches, threat_status = lookup_url_with_status(url)
     if not matches:
-        return assessment
+        return RiskAssessment(
+            classification=assessment.classification,
+            risk_score=assessment.risk_score,
+            confidence=None,
+            evidence=assessment.evidence,
+            ml_probability=assessment.ml_probability,
+            heuristic_strength=assessment.heuristic_strength,
+            threat_intelligence=threat_status,
+        )
 
     evidence = list(assessment.evidence)
     seen_types: set[str] = set()
@@ -112,6 +166,7 @@ def apply_safe_browsing(url: str, assessment: RiskAssessment) -> RiskAssessment:
     return RiskAssessment(
         classification=_classify(score),
         risk_score=score,
-        confidence=max(0.05, min(0.99, score / 100.0)),
+        confidence=None,
         evidence=evidence,
+        threat_intelligence=threat_status,
     )

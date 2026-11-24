@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from src.api.app import create_app
 from src.database.connection import db
 from src.database.models.email import EmailAnalysisRecord, EmailRecord
@@ -109,3 +111,120 @@ def test_email_analysis_persistence() -> None:
         assert EmailAnalysisRecord.query.filter_by(email_id=analysis.email_id).count() == 1
         assert analysis.confidence is None
         assert db.session.get(EmailAnalysisRecord, analysis.id) is not None
+
+
+def _persist_email_analysis(repo: EmailAnalysisRepository):
+    return repo.persist_analysis(
+        from_address="alice@example.com",
+        reply_to=None,
+        subject="Hello",
+        body_text="Hi",
+        body_html="",
+        headers={},
+        classification="low_risk",
+        risk_score=0,
+        confidence=None,
+        features={"link_count": 0},
+        evidence=[],
+        urls=[],
+    )
+
+
+def test_deleting_email_analysis_removes_unshared_email_record() -> None:
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
+
+    with app.app_context():
+        repo = EmailAnalysisRepository()
+        analysis = _persist_email_analysis(repo)
+
+        assert repo.delete_analysis(analysis.id) is True
+        assert db.session.get(EmailAnalysisRecord, analysis.id) is None
+        assert db.session.get(EmailRecord, analysis.email_id) is None
+
+
+def test_deleting_email_analysis_preserves_unrelated_email_record() -> None:
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
+
+    with app.app_context():
+        repo = EmailAnalysisRepository()
+        first = _persist_email_analysis(repo)
+        second = repo.persist_analysis(
+            from_address="bob@example.com",
+            reply_to=None,
+            subject="Other",
+            body_text="Other message",
+            body_html="",
+            headers={},
+            classification="low_risk",
+            risk_score=0,
+            confidence=None,
+            features={},
+            evidence=[],
+            urls=[],
+        )
+
+        assert repo.delete_analysis(first.id) is True
+        assert db.session.get(EmailRecord, first.email_id) is None
+        assert db.session.get(EmailAnalysisRecord, second.id) is not None
+        assert db.session.get(EmailRecord, second.email_id) is not None
+
+
+def test_deleting_one_analysis_preserves_email_shared_by_another_analysis() -> None:
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
+
+    with app.app_context():
+        repo = EmailAnalysisRepository()
+        first = _persist_email_analysis(repo)
+        shared = EmailAnalysisRecord(
+            email_id=first.email_id,
+            classification="moderate_risk",
+            risk_score=30,
+            confidence=None,
+            features={},
+            evidence=[],
+            urls=[],
+        )
+        db.session.add(shared)
+        db.session.commit()
+
+        assert repo.delete_analysis(first.id) is True
+        assert db.session.get(EmailRecord, first.email_id) is not None
+        assert db.session.get(EmailAnalysisRecord, shared.id) is not None
+
+
+def test_failed_email_analysis_delete_rolls_back_analysis_and_email(monkeypatch) -> None:
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
+
+    with app.app_context():
+        analysis = _persist_email_analysis(EmailAnalysisRepository())
+        session = db.session()
+        repo = EmailAnalysisRepository(session=session)
+        original_delete = session.delete
+
+        def fail_email_delete(instance):
+            if isinstance(instance, EmailRecord):
+                raise RuntimeError("simulated email-row deletion failure")
+            original_delete(instance)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(session, "delete", fail_email_delete)
+            with pytest.raises(RuntimeError, match="simulated email-row deletion failure"):
+                repo.delete_analysis(analysis.id)
+
+        assert db.session.get(EmailAnalysisRecord, analysis.id) is not None
+        assert db.session.get(EmailRecord, analysis.email_id) is not None
+
+
+def test_email_deletion_removes_record_when_content_retention_is_disabled(monkeypatch) -> None:
+    app = create_app({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
+
+    with app.app_context():
+        monkeypatch.setenv("RETAIN_EMAIL_CONTENTS", "false")
+        repo = EmailAnalysisRepository()
+        analysis = _persist_email_analysis(repo)
+        email_record = db.session.get(EmailRecord, analysis.email_id)
+        assert email_record is not None
+        assert email_record.body_text == ""
+
+        assert repo.delete_analysis(analysis.id) is True
+        assert db.session.get(EmailRecord, analysis.email_id) is None

@@ -38,6 +38,7 @@ class URLAnalysisService:
             "confidence": analysis.confidence,
             "features": analysis.features,
             "evidence": analysis.evidence,
+            "threat_intelligence": payload.get("threat_intelligence", {"status": "disabled", "message": "Not reported."}),
             "created_at": analysis.created_at.isoformat(),
         }
 
@@ -55,5 +56,29 @@ class URLAnalysisService:
             "confidence": record.confidence,
             "features": record.features,
             "evidence": record.evidence,
+            "threat_intelligence": {"status": "enabled" if any(e.get("source") == "google_safe_browsing" for e in record.evidence) else "disabled", "message": "Stored threat-intelligence evidence is shown where available."},
             "created_at": record.created_at.isoformat(),
         }
+
+    def list_analyses(self, page: int, page_size: int, risk_level: str = "", search: str = "") -> dict[str, object]:
+        records, total = self.repository.list_analyses(page, page_size, risk_level, search)
+        return {
+            "items": [
+                {
+                    "analysis_id": record.id,
+                    "url": record.url.raw_url,
+                    "classification": record.classification,
+                    "risk_score": record.risk_score,
+                    "confidence": record.confidence,
+                    "created_at": record.created_at.isoformat(),
+                }
+                for record in records
+            ],
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "pages": max(1, (total + page_size - 1) // page_size),
+        }
+
+    def delete_analysis(self, analysis_id: int) -> bool:
+        return self.repository.delete_analysis(analysis_id)

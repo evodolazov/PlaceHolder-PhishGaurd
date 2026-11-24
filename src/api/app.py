@@ -6,8 +6,9 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request
 from pathlib import Path
+from flask_migrate import Migrate
 
 from src.api.routes.analysis import analysis_bp
 from src.api.routes.health import health_bp
@@ -32,8 +33,19 @@ def create_app(test_config: dict | None = None) -> Flask:
         app.config.update(test_config)
 
     init_db(app)
+    Migrate(app, db)
     app.register_blueprint(health_bp)
     app.register_blueprint(analysis_bp)
+
+    @app.after_request
+    def add_extension_cors(response):
+        origin = request.headers.get("Origin", "")
+        if origin.startswith("chrome-extension://"):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Headers"] = "Accept, Content-Type"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, DELETE, OPTIONS"
+            response.headers["Vary"] = "Origin"
+        return response
 
     @app.route("/")
     def home():

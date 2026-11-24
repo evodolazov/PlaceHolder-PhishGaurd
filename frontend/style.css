@@ -603,3 +603,272 @@ footer p + p {
     }
 
 }
+
+.topbar {
+    background: var(--primary-dark);
+    color: white;
+    padding: 16px 5%;
+}
+
+.topbar div {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.topbar span {
+    color: #b8c8d7;
+    font-size: 13px;
+}
+
+.dashboard {
+    max-width: 980px;
+    margin: 32px auto;
+    padding: 0 20px 50px;
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.tab,
+.history-controls button,
+.history-actions button,
+.pagination button {
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--primary);
+    border-radius: 7px;
+    padding: 10px 14px;
+    cursor: pointer;
+}
+
+.tab.active {
+    background: var(--secondary);
+    border-color: var(--secondary);
+    color: white;
+}
+
+.panel {
+    display: none;
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 32px;
+}
+
+.panel.active {
+    display: block;
+}
+
+.panel h1 {
+    color: var(--primary);
+    margin-bottom: 6px;
+}
+
+.panel > p {
+    color: var(--text-secondary);
+    margin-bottom: 22px;
+}
+
+.panel form {
+    display: grid;
+    gap: 9px;
+}
+
+.panel form label {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.panel input,
+.panel textarea,
+.history-controls select,
+.history-controls input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 12px;
+    background: #fafcff;
+    color: var(--text-primary);
+}
+
+.panel textarea {
+    resize: vertical;
+}
+
+.panel form button {
+    border: 0;
+    border-radius: 7px;
+    padding: 13px;
+    background: var(--secondary);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.panel form button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.upload-form {
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+}
+
+.loading,
+.error,
+.results {
+    margin-top: 18px;
+}
+
+.error {
+    color: #991b1b;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 7px;
+    padding: 12px;
+}
+
+.results {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    overflow-wrap: anywhere;
+}
+
+.results h2,
+.results h3 {
+    color: var(--primary);
+    margin: 12px 0 8px;
+}
+
+.results ul {
+    margin-left: 20px;
+}
+
+.score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 0;
+}
+
+.risk-badge.low {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.risk-badge.moderate {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.risk-badge.high {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.feature-grid div {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px;
+}
+
+.feature-grid dt {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.feature-grid dd {
+    color: var(--text-secondary);
+}
+
+.history-controls {
+    display: grid;
+    grid-template-columns: 150px 150px 1fr auto;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.history-list {
+    display: grid;
+    gap: 8px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.history-item > div:first-child {
+    display: grid;
+    overflow-wrap: anywhere;
+}
+
+.history-item span {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.history-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.history-actions .delete {
+    color: #991b1b;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+@media (max-width: 768px) {
+    .tabs {
+        flex-wrap: wrap;
+    }
+
+    .tab {
+        flex: 1;
+    }
+
+    .panel {
+        padding: 22px;
+    }
+
+    .history-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .history-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

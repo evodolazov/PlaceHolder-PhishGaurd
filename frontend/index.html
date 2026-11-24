@@ -1,267 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>PhishGuard</title>
-
-    <link rel="stylesheet" href="style.css">
-
-    <script src="api.js" defer></script>
-    <script src="app.js" defer></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PhishGuard</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
-
 <body>
-    <header>
-
-        <div>
-            <h1>PhishGuard</h1>
-        </div>
-
-    </header>
-
-    <!-- Introduction -->
-    <main>
-        <section class="hero">
-
-            <div class="hero-content">
-
-                <span class="subtitle">
-                    CYBERSECURITY & URL PROTECTION
-                </span>
-
-                <h2>
-                    Stay Safe From Phishing Threats
-                </h2>
-
-                <p>
-                    Analyze website URLs and identify potential
-                    phishing threats using PhishGuard's URL
-                    analysis engine.
-                </p>
-
-            </div>
-
-        </section>
-
-        <!-- URL analyzer -->
-        <section class="analyzer-section" id="analyzer">
-
-            <div class="analyzer-card">
-
-                <div class="section-heading">
-
-                    <h2>URL Security Analyzer</h2>
-
-                    <p>
-                        Enter an HTTP or HTTPS website address
-                        to analyze its potential security risks.
-                    </p>
-
-                </div>
-
-                <form id="analysisForm">
-
-                    <label for="urlInput">
-                        Website URL:
-                    </label>
-
-                    <div class="input-container">
-
-                        <input
-                            type="url"
-                            id="urlInput"
-                            name="url"
-                            placeholder="https://example.com"
-                            autocomplete="url"
-                            required
-                        >
-
-                    </div>
-
-                    <button type="submit" id="analyzeButton">
-                        Analyze URL
-                    </button>
-
-                </form>
-
-
-                <!-- Loading indicator -->
-                <div id="loading" class="loading hidden">
-
-                    <div class="spinner"></div>
-
-                    <p>
-                        Analyzing URL... Please wait.
-                    </p>
-
-                </div>
-
-
-                <!-- Error message -->
-                <div
-                    id="errorMessage"
-                    class="error-message hidden"
-                    role="alert"
-                ></div>
-
-            </div>
-
-        </section>
-
-
-        <!-- Analysis Results -->
-        <section
-            id="resultsSection"
-            class="results-section hidden"
-            aria-live="polite"
-        >
-
-            <div class="results-card">
-
-                <div class="results-heading">
-
-                    <h2>Analysis Results</h2>
-
-                    <p>
-                        Here is the result returned by PhishGuard.
-                    </p>
-
-                </div>
-
-
-                <!-- Analysis ID -->
-                <div class="analysis-metadata">
-
-                    <span>Analysis ID:</span>
-
-                    <strong id="analysisId">--</strong>
-
-                </div>
-
-
-                <!-- Original URL -->
-                <div class="result-url">
-
-                    <h3>Submitted URL</h3>
-
-                    <p id="analyzedUrl">--</p>
-
-                </div>
-
-
-                <!-- Normalized URL -->
-                <div class="normalized-url">
-
-                    <h3>Normalized URL</h3>
-
-                    <p id="normalizedUrl">--</p>
-
-                </div>
-
-
-                <!-- Classification -->
-                <div class="risk-container">
-
-                    <div class="risk-information">
-
-                        <h3>Classification</h3>
-
-                        <span
-                            id="classification"
-                            class="risk-badge"
-                        >
-                            --
-                        </span>
-
-                    </div>
-
-                    <!-- Risk score -->
-                    <div class="risk-score">
-
-                        <h3>Risk Score</h3>
-
-                        <p>
-                            <span id="riskScore">--</span>
-                            <span class="score-total">/ 100</span>
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <!-- Confidence -->
-                <div class="confidence-section">
-
-                    <h3>Confidence</h3>
-
-                    <p id="confidence">--</p>
-
-                </div>
-
-
-                <!-- Features -->
-                <div class="features-section">
-
-                    <h3>Extracted URL Features</h3>
-
-                    <div id="featuresContent">
-
-                        <!-- Features populated using JavaScript -->
-
-                    </div>
-
-                </div>
-
-
-                <!-- Evidence -->
-                <div class="evidence-section">
-
-                    <h3>Analysis Evidence</h3>
-
-                    <ul id="evidenceList">
-
-                        <!-- Evidence populated using JavaScript -->
-
-                    </ul>
-
-                </div>
-
-
-                <!-- Get stored analysis -->
-                <div class="retrieve-section">
-
-                    <button
-                        type="button"
-                        id="retrieveButton"
-                    >
-                        Retrieve Stored Analysis
-                    </button>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- PhishGuard info -->
-
-        <section class="about-section" id="about">
-
-            <h2>About PhishGuard</h2>
-
-            <p>
-                PhishGuard is a modular phishing-detection platform focused 
-                on a working URL-analysis foundation. At Milestone 0, the project 
-                implements URL validation, normalization, deterministic feature extraction, 
-                transparent heuristic scoring, structured evidence generation, and 
-                persistent records in a Flask API.
-            </p>
-
-        </section>
-
-    </main>
-
+  <header class="topbar">
+    <div>
+      <strong>PhishGuard</strong>
+      <span>Security Dashboard</span>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <nav class="tabs" aria-label="Dashboard sections">
+      <button type="button" class="tab active" data-tab="url">URL Analysis</button>
+      <button type="button" class="tab" data-tab="email">Email Analysis</button>
+      <button type="button" class="tab" data-tab="history">History</button>
+    </nav>
+
+    <section class="panel active" id="url-panel">
+      <h1>Analyze a URL</h1>
+      <p>Submit an HTTP or HTTPS address for heuristic and optional threat-intelligence analysis.</p>
+      <form id="url-form">
+        <label for="url-input">Website URL</label>
+        <input id="url-input" name="url" type="url" placeholder="https://example.com" required>
+        <button id="url-submit" type="submit">Analyze URL</button>
+      </form>
+      <div id="url-loading" class="loading hidden">Analyzing URL...</div>
+      <div id="url-error" class="error hidden" role="alert"></div>
+      <div id="url-results" class="results hidden"></div>
+    </section>
+
+    <section class="panel" id="email-panel">
+      <h1>Analyze an email</h1>
+      <p>Paste an email or upload a legitimate .eml file. Attachments and remote content are never executed or fetched.</p>
+      <form id="email-form">
+        <label for="email-from">Sender</label>
+        <input id="email-from" name="from" placeholder="Sender <sender@example.com>">
+        <label for="email-reply-to">Reply-To</label>
+        <input id="email-reply-to" name="reply_to" placeholder="optional@example.com">
+        <label for="email-subject">Subject</label>
+        <input id="email-subject" name="subject" placeholder="Email subject">
+        <label for="email-body">Text body</label>
+        <textarea id="email-body" name="body_text" rows="8" placeholder="Paste plain-text email content"></textarea>
+        <label for="email-html">HTML body (optional)</label>
+        <textarea id="email-html" name="body_html" rows="5" placeholder="Paste HTML content if available"></textarea>
+        <button id="email-submit" type="submit">Analyze Email</button>
+      </form>
+      <form id="upload-form" class="upload-form">
+        <label for="email-file">Or upload an .eml file (maximum 2 MB)</label>
+        <input id="email-file" name="file" type="file" accept=".eml,message/rfc822">
+        <button id="upload-submit" type="submit">Analyze .eml</button>
+      </form>
+      <div id="email-loading" class="loading hidden">Analyzing email...</div>
+      <div id="email-error" class="error hidden" role="alert"></div>
+      <div id="email-results" class="results hidden"></div>
+    </section>
+
+    <section class="panel" id="history-panel">
+      <h1>Analysis history</h1>
+      <div class="history-controls">
+        <select id="history-type" aria-label="Analysis type">
+          <option value="url">URL analyses</option>
+          <option value="email">Email analyses</option>
+        </select>
+        <select id="history-risk" aria-label="Risk level">
+          <option value="">All risk levels</option>
+          <option value="low_risk">Low</option>
+          <option value="moderate_risk">Moderate</option>
+          <option value="high_risk">High</option>
+          <option value="critical_risk">Critical</option>
+        </select>
+        <input id="history-search" type="search" placeholder="Search URL or metadata">
+        <button id="history-refresh" type="button">Refresh</button>
+      </div>
+      <div id="history-error" class="error hidden" role="alert"></div>
+      <div id="history-list" class="history-list"></div>
+      <div class="pagination">
+        <button id="history-prev" type="button">Previous</button>
+        <span id="history-page">Page 1</span>
+        <button id="history-next" type="button">Next</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
 </body>
-
 </html>

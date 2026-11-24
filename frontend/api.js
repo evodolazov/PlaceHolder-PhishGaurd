@@ -52,3 +52,44 @@ export async function analyzeURL(url) {
 export async function checkAPIHealth() {
   return requestJSON("/api/v1/health");
 }
+
+export async function analyzeEmail(payload) {
+  return requestJSON("/api/v1/analyze/email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function uploadEmail(file) {
+  const form = new FormData();
+  form.append("file", file);
+  return requestJSON("/api/v1/analyze/email/upload", {
+    method: "POST",
+    body: form
+  });
+}
+
+export async function getURLHistory(page = 1, pageSize = 10, riskLevel = "", search = "") {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (riskLevel) params.set("risk_level", riskLevel);
+  if (search) params.set("search", search);
+  return requestJSON(`/api/v1/analyses/url?${params}`);
+}
+
+export async function getEmailHistory(page = 1, pageSize = 10, riskLevel = "", search = "") {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (riskLevel) params.set("risk_level", riskLevel);
+  if (search) params.set("search", search);
+  return requestJSON(`/api/v1/analyses/email?${params}`);
+}
+
+export async function getAnalysis(type, id) {
+  const path = type === "email" ? `/api/v1/email-analysis/${id}` : `/api/v1/analysis/${id}`;
+  return requestJSON(path);
+}
+
+export async function deleteAnalysis(type, id) {
+  const path = type === "email" ? `/api/v1/email-analysis/${id}` : `/api/v1/analysis/${id}`;
+  return requestJSON(path, { method: "DELETE" });
+}
