@@ -6,6 +6,7 @@ leave the heuristic score unchanged.
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import urllib.error
@@ -112,7 +113,14 @@ def lookup_url_with_status(url: str) -> tuple[list[dict[str, Any]], dict[str, An
     try:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError):
+    except (
+        http.client.IncompleteRead,
+        urllib.error.URLError,
+        TimeoutError,
+        json.JSONDecodeError,
+        OSError,
+        ValueError,
+    ):
         return [], {
             "status": "unavailable",
             "match_found": None,

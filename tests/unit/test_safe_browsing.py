@@ -1,4 +1,5 @@
 from __future__ import annotations
+import http.client
 import io
 import urllib.error
 
@@ -68,6 +69,35 @@ def test_lookup_reports_empty_or_malformed_response_as_unavailable(monkeypatch, 
     assert matches == []
     assert status["status"] == "unavailable"
     assert status["match_found"] is None
+
+
+def test_lookup_reports_incomplete_read_as_unavailable(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_SAFE_BROWSING_API_KEY", "test-key")
+    monkeypatch.setenv("SAFE_BROWSING_ENABLED", "true")
+
+    class IncompleteResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            raise http.client.IncompleteRead(b"partial response")
+
+    monkeypatch.setattr(
+        "src.engines.threat_intel.safe_browsing.urllib.request.urlopen",
+        lambda *_args, **_kwargs: IncompleteResponse(),
+    )
+
+    matches, status = lookup_url_with_status("https://example.com")
+
+    assert matches == []
+    assert status == {
+        "status": "unavailable",
+        "match_found": None,
+        "message": "Google Safe Browsing lookup is currently unavailable.",
+    }
 
 
 def test_lookup_status_distinguishes_match_from_clean_response(monkeypatch) -> None:
