@@ -21,9 +21,13 @@ Copy `.env.example` to `.env` and update the database settings if needed.
 ```env
 DATABASE_URL=postgresql://phishguard:phishguard@localhost:5432/phishguard
 SECRET_KEY=change-me
+SAFE_BROWSING_ENABLED=false
+GOOGLE_SAFE_BROWSING_API_KEY=
 ```
 
 The project also supports SQLite test configuration when using isolated test runs.
+
+Google Safe Browsing is optional. Set `SAFE_BROWSING_ENABLED=true` and add an API key to check submitted URLs (and links inside emails) against Google's lists. If the key is missing or the request fails, analysis still returns the local heuristic score.
 
 ## Run the application
 
@@ -51,4 +55,4 @@ python scripts/seed_database.py
 
 ## Milestone 0 limitations
 
-This milestone intentionally does not fetch remote URLs, call third-party threat-intelligence APIs, perform ML, inspect email, or provide browser extension functionality.
+This milestone does not crawl webpages, use machine learning, inspect mailboxes, or provide browser extension functionality. Google Safe Browsing is an optional lookup when enabled.

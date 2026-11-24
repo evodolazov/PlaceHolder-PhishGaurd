@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.engines.threat_intel.safe_browsing import apply_safe_browsing
 from src.engines.url.features import extract_features
 from src.engines.url.normalizer import normalize_url, validate_url
 from src.engines.url.sanitizer import sanitize_url_for_storage
@@ -19,6 +20,7 @@ def analyze_url(raw_url: str) -> dict[str, Any]:
     features = extract_features(normalized)
 
     risk_assessment: RiskAssessment = score_url(features, normalized)
+    risk_assessment = apply_safe_browsing(normalized.normalized_url, risk_assessment)
     safe_url = sanitize_url_for_storage(raw_url)
 
     return {

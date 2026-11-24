@@ -14,11 +14,16 @@ class AppConfig:
 
     database_url: str = "sqlite:///phishguard.db"
     secret_key: str = "dev-secret-key"
+    safe_browsing_enabled: bool = False
+    google_safe_browsing_api_key: str = ""
 
     @classmethod
     def from_env(cls) -> "AppConfig":
         load_dotenv()
+        enabled = os.getenv("SAFE_BROWSING_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
         return cls(
             database_url=os.getenv("DATABASE_URL", "sqlite:///phishguard.db"),
             secret_key=os.getenv("SECRET_KEY", "dev-secret-key"),
+            safe_browsing_enabled=enabled,
+            google_safe_browsing_api_key=os.getenv("GOOGLE_SAFE_BROWSING_API_KEY", "").strip(),
         )

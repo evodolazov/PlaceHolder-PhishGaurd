@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
+from flask import Flask
 from flask import Flask, send_from_directory
 from pathlib import Path
 
@@ -16,6 +18,7 @@ from src.database.models import url as _url_models  # noqa: F401
 
 def create_app(test_config: dict | None = None) -> Flask:
     """Create a configured Flask application instance."""
+    load_dotenv()
     app = Flask(__name__)
     FRONTEND_DIR = Path(__file__).resolve().parents[2]/ "frontend"
     app.config.from_mapping(
